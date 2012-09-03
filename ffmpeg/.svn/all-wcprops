@@ -1,0 +1,179 @@
+K 25
+svn:wc:ra_dav:version-url
+V 41
+/healthcare/!svn/ver/525/trunk/src/ffmpeg
+END
+CREDITS
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/CREDITS
+END
+README
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/README
+END
+version.sh
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/version.sh
+END
+subdir.mak
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/subdir.mak
+END
+common.mak
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/common.mak
+END
+COPYING.GPLv2
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/COPYING.GPLv2
+END
+COPYING.GPLv3
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/COPYING.GPLv3
+END
+ffplay.c
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/ffplay.c
+END
+.version
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/.version
+END
+ffserver.c
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/ffserver.c
+END
+ffprobe.c
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/ffprobe.c
+END
+cmdutils.c
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/cmdutils.c
+END
+INSTALL
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/INSTALL
+END
+build-to-splugin.sh
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/467/trunk/src/ffmpeg/build-to-splugin.sh
+END
+cmdutils.h
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/cmdutils.h
+END
+MAINTAINERS
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/MAINTAINERS
+END
+version.h
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/version.h
+END
+COPYING.LGPLv2.1
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/COPYING.LGPLv2.1
+END
+avconv.c
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/avconv.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/Makefile
+END
+COPYING.LGPLv3
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/COPYING.LGPLv3
+END
+RELEASE
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/RELEASE
+END
+configure
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/configure
+END
+LICENSE
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/LICENSE
+END
+Doxyfile
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/Doxyfile
+END
+.config
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/.config
+END
+ffmpeg.c
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/ffmpeg.c
+END
+Changelog
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/Changelog
+END
+cmdutils_common_opts.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/cmdutils_common_opts.h
+END

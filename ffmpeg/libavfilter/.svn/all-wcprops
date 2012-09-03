@@ -1,0 +1,497 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/healthcare/!svn/ver/238/trunk/src/ffmpeg/libavfilter
+END
+af_ashowinfo.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_ashowinfo.c
+END
+vf_null.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_null.c
+END
+vsrc_buffer.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_buffer.c
+END
+asrc_aevalsrc.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/asrc_aevalsrc.c
+END
+vf_boxblur.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_boxblur.c
+END
+vsink_nullsink.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsink_nullsink.c
+END
+vf_select.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_select.c
+END
+vsrc_buffer.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_buffer.h
+END
+vf_vflip.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_vflip.c
+END
+vf_unsharp.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_unsharp.c
+END
+vsrc_life.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_life.c
+END
+vf_libopencv.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_libopencv.c
+END
+avfilter.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/avfilter.c
+END
+af_aresample.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_aresample.c
+END
+avfilter.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/avfilter.h
+END
+internal.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/internal.h
+END
+vf_gradfun.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_gradfun.c
+END
+vsrc_testsrc.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_testsrc.c
+END
+all_channel_layouts.h
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/all_channel_layouts.h
+END
+vf_split.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_split.c
+END
+vf_cropdetect.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_cropdetect.c
+END
+vf_yadif.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_yadif.c
+END
+af_aconvert.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_aconvert.c
+END
+vf_fade.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_fade.c
+END
+gradfun.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/gradfun.h
+END
+vf_drawtext.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_drawtext.c
+END
+avfiltergraph.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/avfiltergraph.c
+END
+vf_deshake.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_deshake.c
+END
+buffersink.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/buffersink.h
+END
+avfiltergraph.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/avfiltergraph.h
+END
+avcodec.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/avcodec.c
+END
+vf_delogo.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_delogo.c
+END
+avcodec.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/avcodec.h
+END
+vf_fieldorder.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_fieldorder.c
+END
+vf_overlay.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_overlay.c
+END
+vf_hqdn3d.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_hqdn3d.c
+END
+af_anull.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_anull.c
+END
+vsrc_mptestsrc.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_mptestsrc.c
+END
+vf_scale.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_scale.c
+END
+asrc_abuffer.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/asrc_abuffer.c
+END
+vf_frei0r.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_frei0r.c
+END
+vf_format.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_format.c
+END
+vsrc_mandelbrot.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_mandelbrot.c
+END
+asink_anullsink.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/asink_anullsink.c
+END
+src_movie.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/src_movie.c
+END
+asrc_abuffer.h
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/asrc_abuffer.h
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/Makefile
+END
+sink_buffer.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/sink_buffer.c
+END
+vf_crop.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_crop.c
+END
+vf_drawbox.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_drawbox.c
+END
+af_aconvert_rematrix.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_aconvert_rematrix.c
+END
+vf_mp.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_mp.c
+END
+vf_transpose.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_transpose.c
+END
+vf_aspect.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_aspect.c
+END
+formats.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/formats.c
+END
+vsrc_color.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vsrc_color.c
+END
+vf_settb.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_settb.c
+END
+vf_setpts.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_setpts.c
+END
+graphparser.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/graphparser.c
+END
+drawutils.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/drawutils.c
+END
+drawutils.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/drawutils.h
+END
+libavfilter.v
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/libavfilter.v
+END
+vf_showinfo.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_showinfo.c
+END
+vf_pixdesctest.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_pixdesctest.c
+END
+vf_slicify.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_slicify.c
+END
+vf_pad.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_pad.c
+END
+af_aformat.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_aformat.c
+END
+allfilters.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/allfilters.c
+END
+yadif.h
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/yadif.h
+END
+vf_copy.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_copy.c
+END
+defaults.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/defaults.c
+END
+transform.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/transform.c
+END
+af_volume.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_volume.c
+END
+vf_fifo.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_fifo.c
+END
+transform.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/transform.h
+END
+vf_ass.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_ass.c
+END
+vf_blackframe.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_blackframe.c
+END
+af_pan.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_pan.c
+END
+asrc_anullsrc.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/asrc_anullsrc.c
+END
+af_earwax.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/af_earwax.c
+END
+vf_hflip.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_hflip.c
+END
+vf_lut.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/vf_lut.c
+END

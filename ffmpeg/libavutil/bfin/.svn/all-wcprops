@@ -1,0 +1,17 @@
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/bfin
+END
+bswap.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/bfin/bswap.h
+END
+timer.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/bfin/timer.h
+END

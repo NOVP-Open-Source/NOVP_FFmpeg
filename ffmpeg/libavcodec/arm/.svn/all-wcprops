@@ -1,0 +1,419 @@
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm
+END
+vp56dsp_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp56dsp_init_arm.c
+END
+int_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/int_neon.S
+END
+dsputil_iwmmxt.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_iwmmxt.c
+END
+mpegaudiodsp_fixed_armv6.S
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegaudiodsp_fixed_armv6.S
+END
+vp56_arith.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp56_arith.h
+END
+ac3dsp_arm.S
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/ac3dsp_arm.S
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/Makefile
+END
+dcadsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dcadsp_neon.S
+END
+ac3dsp_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/ac3dsp_init_arm.c
+END
+mpegaudiodsp_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegaudiodsp_init_arm.c
+END
+rv34dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/rv34dsp_neon.S
+END
+h264cmc_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/h264cmc_neon.S
+END
+mdct_fixed_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mdct_fixed_neon.S
+END
+dsputil_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_init_arm.c
+END
+vp8_armv6.S
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp8_armv6.S
+END
+dsputil_init_armv5te.c
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_init_armv5te.c
+END
+simple_idct_arm.S
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/simple_idct_arm.S
+END
+fft_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fft_neon.S
+END
+vp8dsp_armv6.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp8dsp_armv6.S
+END
+simple_idct_armv5te.S
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/simple_idct_armv5te.S
+END
+vp8dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp8dsp_neon.S
+END
+mpegvideo_iwmmxt.c
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegvideo_iwmmxt.c
+END
+fmtconvert_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fmtconvert_neon.S
+END
+h264idct_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/h264idct_neon.S
+END
+dsputil_init_neon.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_init_neon.c
+END
+h264dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/h264dsp_neon.S
+END
+dca.h
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dca.h
+END
+h264pred_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/h264pred_neon.S
+END
+rdft_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/rdft_neon.S
+END
+asm.S
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/asm.S
+END
+dsputil_arm.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_arm.S
+END
+mpegvideo_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegvideo_neon.S
+END
+mpegvideo_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegvideo_arm.c
+END
+mathops.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mathops.h
+END
+dcadsp_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dcadsp_init_arm.c
+END
+mpegvideo_armv5te.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegvideo_armv5te.c
+END
+vp8.h
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp8.h
+END
+mpegvideo_arm.h
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegvideo_arm.h
+END
+simple_idct_armv6.S
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/simple_idct_armv6.S
+END
+dsputil_arm.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_arm.h
+END
+simple_idct_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/simple_idct_neon.S
+END
+fft_fixed_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fft_fixed_neon.S
+END
+fft_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fft_init_arm.c
+END
+vp8dsp_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp8dsp_init_arm.c
+END
+vp56dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp56dsp_neon.S
+END
+fmtconvert_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fmtconvert_init_arm.c
+END
+ac3dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/ac3dsp_neon.S
+END
+h264dsp_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/h264dsp_init_arm.c
+END
+vp3dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/vp3dsp_neon.S
+END
+dsputil_armv6.S
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_armv6.S
+END
+h264pred_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/h264pred_init_arm.c
+END
+jrevdct_arm.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/jrevdct_arm.S
+END
+dsputil_init_vfp.c
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_init_vfp.c
+END
+fmtconvert_vfp.S
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fmtconvert_vfp.S
+END
+dsputil_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_neon.S
+END
+mpegvideo_armv5te_s.S
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mpegvideo_armv5te_s.S
+END
+mdct_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/mdct_neon.S
+END
+dsputil_iwmmxt_rnd_template.c
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_iwmmxt_rnd_template.c
+END
+aac.h
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/aac.h
+END
+asm-offsets.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/asm-offsets.h
+END
+rv40dsp_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/rv40dsp_neon.S
+END
+rv40dsp_init_neon.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/rv40dsp_init_neon.c
+END
+rv34dsp_init_neon.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/rv34dsp_init_neon.c
+END
+ac3dsp_armv6.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/ac3dsp_armv6.S
+END
+synth_filter_neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/synth_filter_neon.S
+END
+neon.S
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/neon.S
+END
+dsputil_vfp.S
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_vfp.S
+END
+fft_fixed_init_arm.c
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/fft_fixed_init_arm.c
+END
+dsputil_init_armv6.c
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/arm/dsputil_init_armv6.c
+END

@@ -1,0 +1,149 @@
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc
+END
+idct_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/idct_altivec.c
+END
+h264_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/h264_altivec.c
+END
+dsputil_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/dsputil_altivec.c
+END
+vp8dsp_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/vp8dsp_altivec.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/Makefile
+END
+mpegaudiodec_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/mpegaudiodec_altivec.c
+END
+fmtconvert_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/fmtconvert_altivec.c
+END
+dsputil_altivec.h
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/dsputil_altivec.h
+END
+asm.S
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/asm.S
+END
+int_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/int_altivec.c
+END
+regs.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/regs.h
+END
+vc1dsp_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/vc1dsp_altivec.c
+END
+float_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/float_altivec.c
+END
+gmc_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/gmc_altivec.c
+END
+mathops.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/mathops.h
+END
+types_altivec.h
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/types_altivec.h
+END
+h264_template_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/h264_template_altivec.c
+END
+fft_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/fft_altivec.c
+END
+dsputil_ppc.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/dsputil_ppc.c
+END
+mpegvideo_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/mpegvideo_altivec.c
+END
+vp3dsp_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/vp3dsp_altivec.c
+END
+fdct_altivec.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/fdct_altivec.c
+END
+fft_altivec_s.S
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/fft_altivec_s.S
+END
+util_altivec.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/ppc/util_altivec.h
+END

@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/x86
+END
+gradfun.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/x86/gradfun.c
+END
+yadif_template.c
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/x86/yadif_template.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/x86/Makefile
+END
+yadif.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavfilter/x86/yadif.c
+END

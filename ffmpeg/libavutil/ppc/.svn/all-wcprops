@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/ppc
+END
+timer.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/ppc/timer.h
+END
+intreadwrite.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/ppc/intreadwrite.h
+END
+cpu.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/ppc/cpu.c
+END

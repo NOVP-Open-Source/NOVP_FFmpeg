@@ -1,0 +1,263 @@
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc
+END
+developer.texi
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/developer.texi
+END
+fate.txt
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/fate.txt
+END
+git-howto.txt
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/git-howto.txt
+END
+eval.texi
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/eval.texi
+END
+t2h.init
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/t2h.init
+END
+swresample.txt
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/swresample.txt
+END
+avconv.texi
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/avconv.texi
+END
+demuxers.texi
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/demuxers.texi
+END
+encoders.texi
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/encoders.texi
+END
+faq.texi
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/faq.texi
+END
+issue_tracker.txt
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/issue_tracker.txt
+END
+ffmpeg.txt
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffmpeg.txt
+END
+avutil.txt
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/avutil.txt
+END
+metadata.texi
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/metadata.texi
+END
+RELEASE_NOTES
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/RELEASE_NOTES
+END
+ffserver.texi
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffserver.texi
+END
+bitstream_filters.texi
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/bitstream_filters.texi
+END
+ffprobe.texi
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffprobe.texi
+END
+muxers.texi
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/muxers.texi
+END
+protocols.texi
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/protocols.texi
+END
+multithreading.txt
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/multithreading.txt
+END
+tablegen.txt
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/tablegen.txt
+END
+indevs.texi
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/indevs.texi
+END
+decoders.texi
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/decoders.texi
+END
+outdevs.texi
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/outdevs.texi
+END
+APIchanges
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/APIchanges
+END
+soc.txt
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/soc.txt
+END
+optimization.txt
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/optimization.txt
+END
+snow.txt
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/snow.txt
+END
+ffserver.conf
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffserver.conf
+END
+avtools-common-opts.texi
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/avtools-common-opts.texi
+END
+texi2pod.pl
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/texi2pod.pl
+END
+libavfilter.texi
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/libavfilter.texi
+END
+ffmpeg.texi
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffmpeg.texi
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/Makefile
+END
+swscale.txt
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/swscale.txt
+END
+filters.texi
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/filters.texi
+END
+build_system.txt
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/build_system.txt
+END
+viterbi.txt
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/viterbi.txt
+END
+ffmpeg-mt-authorship.txt
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffmpeg-mt-authorship.txt
+END
+general.texi
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/general.texi
+END
+rate_distortion.txt
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/rate_distortion.txt
+END
+ffplay.texi
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/doc/ffplay.texi
+END

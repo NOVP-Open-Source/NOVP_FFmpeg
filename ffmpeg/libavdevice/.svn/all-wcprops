@@ -1,0 +1,233 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/healthcare/!svn/ver/238/trunk/src/ffmpeg/libavdevice
+END
+openal-dec.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/openal-dec.c
+END
+timefilter.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/timefilter.h
+END
+sdl.c
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/sdl.c
+END
+alsa-audio-enc.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/alsa-audio-enc.c
+END
+alsa-audio.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/alsa-audio.h
+END
+oss_audio.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/oss_audio.c
+END
+avdevice.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/avdevice.c
+END
+vfwcap.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/vfwcap.c
+END
+sndio_dec.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/sndio_dec.c
+END
+v4l2.c
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/v4l2.c
+END
+jack_audio.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/jack_audio.c
+END
+dshow_filter.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow_filter.c
+END
+dshow_pin.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow_pin.c
+END
+avdevice.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/avdevice.h
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/Makefile
+END
+dshow_common.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow_common.c
+END
+dshow_enummediatypes.c
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow_enummediatypes.c
+END
+dshow_enumpins.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow_enumpins.c
+END
+alsa-audio-common.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/alsa-audio-common.c
+END
+v4l.c
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/v4l.c
+END
+x11grab.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/x11grab.c
+END
+alsa-audio-dec.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/alsa-audio-dec.c
+END
+alldevices.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/alldevices.c
+END
+sndio_common.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/sndio_common.c
+END
+dshow.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow.c
+END
+fbdev.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/fbdev.c
+END
+pulse.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/pulse.c
+END
+sndio_common.h
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/sndio_common.h
+END
+dshow.h
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dshow.h
+END
+dv1394.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dv1394.c
+END
+libdc1394.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/libdc1394.c
+END
+dv1394.h
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/dv1394.h
+END
+libavdevice.v
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/libavdevice.v
+END
+sndio_enc.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/sndio_enc.c
+END
+lavfi.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/lavfi.c
+END
+bktr.c
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/bktr.c
+END
+timefilter.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/timefilter.c
+END
+libcdio.c
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavdevice/libcdio.c
+END

@@ -1,0 +1,49 @@
+10
+
+dir
+681
+https://svn.cae-engineering.hu/healthcare/trunk/src/ffmpeg/tests/ref
+https://svn.cae-engineering.hu/healthcare
+
+
+
+2012-01-05T12:23:22.537322Z
+194
+aotvos
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+0ff463d2-7f9e-49a1-ab5a-66e29f61fa28
+
+vsynth1
+dir
+
+vsynth2
+dir
+
+acodec
+dir
+
+fate
+dir
+
+lavfi
+dir
+
+seek
+dir
+
+lavf
+dir
+

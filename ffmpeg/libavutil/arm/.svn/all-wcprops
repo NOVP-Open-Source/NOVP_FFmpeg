@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/arm
+END
+bswap.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/arm/bswap.h
+END
+timer.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/arm/timer.h
+END
+intreadwrite.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/arm/intreadwrite.h
+END
+cpu.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/arm/cpu.c
+END
+intmath.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavutil/arm/intmath.h
+END

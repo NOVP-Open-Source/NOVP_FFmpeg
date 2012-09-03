@@ -1,0 +1,71 @@
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/Makefile
+END
+mpegvideo_bfin.c
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/mpegvideo_bfin.c
+END
+fdct_bfin.S
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/fdct_bfin.S
+END
+mathops.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/mathops.h
+END
+idct_bfin.S
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/idct_bfin.S
+END
+dsputil_bfin.c
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/dsputil_bfin.c
+END
+pixels_bfin.S
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/pixels_bfin.S
+END
+vp3_bfin.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/vp3_bfin.c
+END
+dsputil_bfin.h
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/dsputil_bfin.h
+END
+config_bfin.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/config_bfin.h
+END
+vp3_idct_bfin.S
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/bfin/vp3_idct_bfin.S
+END

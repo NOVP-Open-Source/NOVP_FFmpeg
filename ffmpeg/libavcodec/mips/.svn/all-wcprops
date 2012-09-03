@@ -1,0 +1,17 @@
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/mips
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/mips/Makefile
+END
+mathops.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/healthcare/!svn/ver/194/trunk/src/ffmpeg/libavcodec/mips/mathops.h
+END

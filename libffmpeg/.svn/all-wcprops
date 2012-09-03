@@ -1,0 +1,179 @@
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/healthcare/!svn/ver/673/trunk/src/libffmpeg
+END
+configure
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/230/trunk/src/libffmpeg/configure
+END
+cpuinfo.c
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/healthcare/!svn/ver/221/trunk/src/libffmpeg/cpuinfo.c
+END
+aclib_template.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/227/trunk/src/libffmpeg/aclib_template.c
+END
+settings.h
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/205/trunk/src/libffmpeg/settings.h
+END
+libffplay.c
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/673/trunk/src/libffmpeg/libffplay.c
+END
+fmt-conversion.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/560/trunk/src/libffmpeg/fmt-conversion.c
+END
+aclib.c
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/227/trunk/src/libffmpeg/aclib.c
+END
+libxplayer.c
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/560/trunk/src/libffmpeg/libxplayer.c
+END
+libffplay.h
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/670/trunk/src/libffmpeg/libffplay.h
+END
+fastmemcpy.h
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/227/trunk/src/libffmpeg/fastmemcpy.h
+END
+fmt-conversion.h
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/healthcare/!svn/ver/227/trunk/src/libffmpeg/fmt-conversion.h
+END
+libffplayopts.c
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/560/trunk/src/libffmpeg/libffplayopts.c
+END
+libxplayer.h
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/670/trunk/src/libffmpeg/libxplayer.h
+END
+debugview.c
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/673/trunk/src/libffmpeg/debugview.c
+END
+ffplay.c
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/healthcare/!svn/ver/411/trunk/src/libffmpeg/ffplay.c
+END
+libffplayopts.h
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/448/trunk/src/libffmpeg/libffplayopts.h
+END
+cmdutils.c
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/560/trunk/src/libffmpeg/cmdutils.c
+END
+cpudetect.h
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/227/trunk/src/libffmpeg/cpudetect.h
+END
+eventqueue.c
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/436/trunk/src/libffmpeg/eventqueue.c
+END
+debug.c
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/638/trunk/src/libffmpeg/debug.c
+END
+debugview.h
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/healthcare/!svn/ver/527/trunk/src/libffmpeg/debugview.h
+END
+af.c
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/599/trunk/src/libffmpeg/af.c
+END
+cmdutils.h
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/healthcare/!svn/ver/395/trunk/src/libffmpeg/cmdutils.h
+END
+libffplay2.c
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/401/trunk/src/libffmpeg/libffplay2.c
+END
+eventqueue.h
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/healthcare/!svn/ver/436/trunk/src/libffmpeg/eventqueue.h
+END
+debug.h
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/healthcare/!svn/ver/673/trunk/src/libffmpeg/debug.h
+END
+af.h
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/healthcare/!svn/ver/599/trunk/src/libffmpeg/af.h
+END
+playerprocess.c
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/healthcare/!svn/ver/560/trunk/src/libffmpeg/playerprocess.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/healthcare/!svn/ver/527/trunk/src/libffmpeg/Makefile
+END
