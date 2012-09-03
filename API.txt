@@ -1,0 +1,34 @@
+
+  libxplayer                    |   SPlayer                                         |  JavaScript
+--------------------------------+---------------------------------------------------+-----------------------
+    init()                      |  PluginFactory::globalPluginInitialize()          |   -
+    done()                      |  PluginFactory::globalPluginDeinitialize()        |   -
+                                |                                                   |  
+    setimage(slot, w, h, fmt)   |                                                   |  
+    getvideoformat(slot)        |                                                   |  getvideoformat()
+    getaudioformat(slot)        |                                                   |  getaudioformat()
+    getmovielength(slot)        |                                                   |  getmovielength()
+                                |                                                   |  
+    slotfree(slot)              |                                                   |  
+    loadurl(slot, url)          |                                                   |  open(url)
+    geturl(slot)                |                                                   |  geturl()
+    unloadurl(slot)             |                                                   |  close()
+    play(slot)                  |                                                   |  play()
+    pause(slot)                 |                                                   |  pause()
+    stop(slot)                  |                                                   |  stop()
+    seek(slot, pos)             |                                                   |  seek(pos)
+    volume(slot, volume)        |                                                   |  volume(vol)
+    getvolume(slot)             |                                                   |  getvolume()
+                                |                                                   |  
+    getstatus(slot)             |                                                   |  getstatus()
+    getcurrentpts(slot)         |                                                   |  getcurrentpts()
+    getrealpts(slot)            |                                                   |  getrealpts()
+    getfps(slot)                |                                                   |  getfps()
+                                |                                                   |  
+    getimage(slot, img)         |                                                   |  
+                                |                                                   |  
+    getaudio(buffer, bufferlen) |                                                   |  
+    getaudio_rate()             |                                                   |  
+    getaudio_channels()         |                                                   |  
+    getaudio_format()           |                                                   |  
+
