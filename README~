@@ -13,13 +13,20 @@
 #       2. Libraries       #
 ############################
 
+Mac OS X:
  Firebreath 
  FFmpeg
- OPENGL
- cmake
 
 ############################
-#        3. Credits        #
+#     3. Dependencies      #
+############################ 
+
+Mac OS X:
+ cmake 
+ xcode
+
+############################
+#        4. Credits        #
 ############################
 
  Máté Koch
