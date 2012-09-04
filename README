@@ -4,6 +4,7 @@
 
  Name: CAE SPlayer Plugin v1.0.0
  Description: Stream player with extensive syncronization capabilities
+
  Lincencing         -> LICENCE
  Installation notes -> INSTALL
  Changelog          -> CHANGELOG
@@ -15,6 +16,7 @@
  Firebreath 
  FFmpeg
  OPENGL
+ cmake
 
 ############################
 #        3. Credits        #
