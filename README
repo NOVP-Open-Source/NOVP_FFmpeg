@@ -32,9 +32,8 @@ Mac OS X:
 ############################
 
 Mac OS X:
-  1, chmod a+x mac.sh
-  2, ./mac.sh
-  3, Open and compile with XCode 'build/FireBreath.xcodeproj'
+  1, ./mac.sh
+  2, Open and compile with XCode 'build/FireBreath.xcodeproj'
 
 ############################
 #        4. Credits        #
