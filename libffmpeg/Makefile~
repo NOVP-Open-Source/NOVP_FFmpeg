@@ -1,13 +1,13 @@
 CC=gcc
 LD=gcc
 CFLAGS = -g -Wall -I.
-FFCFLAGS = -I../FFmpeg $(shell sdl-config --cflags)
+FFCFLAGS = -I../ffmpeg $(shell sdl-config --cflags)
 LDFLAGS =
 LIBS = -lz -lm -lpthread $(shell sdl-config --libs) -lSDL_ttf
 #LIBS = -lz -lm -lpthread
 TARGETS = 
 
-FFMPEGDIR=../FFmpeg/
+FFMPEGDIR=../ffmpeg/
 STATICLIBS= lib/libavformat.a lib/libavfilter.a lib/libavcodec.a lib/libswscale.a lib/libavutil.a lib/libswresample.a
 FFLIBS=lib/libavdevice.a
 OBJECTS = $(addsuffix .o, $(TARGETS)) 
