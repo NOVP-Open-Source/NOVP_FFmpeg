@@ -56,7 +56,7 @@ find_library(AUDIO_TOOLBOX_FRAMEWORK AudioToolbox)
 find_library(AUDIO_UNIT_FRAMEWORK AudioUnit)
 find_library(VDA_FRAMEWORK VideoDecodeAcceleration)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg)
+include_directories(~/Work/healthcare/trunk/src/libffmpeg)
 include_directories(/Developer/Extras/CoreAudio/PublicUtility)
 
 # add library dependencies here; leave ${PLUGIN_INTERNAL_DEPS} there unless you know what you're doing!
