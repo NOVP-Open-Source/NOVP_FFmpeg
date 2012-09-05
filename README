@@ -8,6 +8,8 @@
  Lincensing         -> LICENSE
  History            -> NEWS
  
+ To clone the repository use 
+   git clone --recursive git://github.com/Cae-Engineering/splayer
 
 ############################
 #       2. Libraries       #
