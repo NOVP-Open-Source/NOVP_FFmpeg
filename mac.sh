@@ -1,4 +1,6 @@
 #!/bin/bash
 
 ./gen.sh
-./libffmpeg/build-to-splugin.sh ./libffmpeg/
+patch FFmpeg/libavformat/tcp.c tcp.patch
+cd libffmpeg
+make

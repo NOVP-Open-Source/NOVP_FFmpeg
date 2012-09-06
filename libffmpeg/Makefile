@@ -56,53 +56,53 @@ libxplayer.so.0.0: $(OBJS) $(STATICLIBS)
 libxplayer.a: $(OBJS)
 	$(AR) -r libxplayer.a $(OBJS)
 
-lib/libswscale.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libswscale.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
-lib/libavcodec.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libavcodec.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
-lib/libavfilter.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libavfilter.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
-lib/libavutil.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libavutil.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
-lib/libavformat.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libavformat.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
-lib/libswresample.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libswresample.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
-lib/libavdevice.a: $(FFMPEGDIR)/build-to-splugin.sh
+lib/libavdevice.a: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \
-	./build-to-splugin.sh "$$opwd" ; \
+	../libffmpeg/build-to-splugin.sh "$$opwd" ; \
 	cd "$$opwd"
 
 config.h: configure

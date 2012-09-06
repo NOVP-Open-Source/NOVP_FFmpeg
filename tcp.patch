@@ -1,0 +1,12 @@
+--- FFmpeg/libavformat/tcp.c	2012-09-06 14:14:27.259330232 +0200
++++ FFmpeg/libavformat/tcp.c	2012-09-06 13:04:43.959289891 +0200
+@@ -179,7 +179,8 @@
+         if (ret < 0)
+             return ret;
+     }
+-    ret = send(s->fd, buf, size, 0);
++//    ret = send(s->fd, buf, size, 0);
++    ret = send(s->fd, buf, size, MSG_NOSIGNAL);
+     return ret < 0 ? ff_neterrno() : ret;
+ }
+ 
