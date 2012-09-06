@@ -1,6 +1,6 @@
 #!/bin/bash
 
 ./gen.sh
-patch FFmpeg FFmpeg.patch
+patch -p0 < FFmpeg.patch
 cd libffmpeg
 make
