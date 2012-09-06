@@ -1,0 +1,32 @@
+Index: FFmpeg/libavutil/common.h
+===================================================================
+--- FFmpeg/libavutil/common.h
++++ FFmpeg/libavutil/common.h
+@@ -28,7 +28,9 @@
+ 
+ #include <ctype.h>
+ #include <errno.h>
++#ifndef FB_WIN
+ #include <inttypes.h>
++#endif
+ #include <limits.h>
+ #include <math.h>
+ #include <stdio.h>
+Index: libavformat/tcp.c
+===================================================================
+--- FFmpeg/libavformat/tcp.c
++++ FFmpeg/libavformat/tcp.c
+@@ -179,7 +179,8 @@
+         if (ret < 0)
+             return ret;
+     }
+-    ret = send(s->fd, buf, size, 0);
++//    ret = send(s->fd, buf, size, 0);
++    #ifdef __APPLE__
++      ret = send(s->fd, buf, size, SO_NOSIGPIPE);
++    # else
++      ret = send(s->fd, buf, size, MSG_NOSIGNAL);
++    #endif
+     return ret < 0 ? ff_neterrno() : ret;
+ }
+ 

@@ -2,10 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#ifdef __APPLE__
-#if !defined(__APPLE__)
-	#include <malloc.h>
-#endif
+#include <malloc.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>

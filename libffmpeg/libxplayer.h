@@ -411,8 +411,9 @@ int             xplayer_audio_info(void* priv, audio_info_t* audio_info);
 #define SYNC_TYPE_VIDEO                 1
 #define SYNC_TYPE_CLOCK                 2
 
-void            xplayer_API_init(int log_level);
+void            xplayer_API_init(int log_level, const char* logfile);
 void            xplayer_API_done();
+void            xplayer_API_setlogfile(const char* logfile);
 
 int             xplayer_API_setimage(int slot, int w, int h, unsigned int fmt);
 video_info_t*   xplayer_API_getvideoformat(int slot);

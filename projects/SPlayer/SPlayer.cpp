@@ -22,11 +22,12 @@ Copyright 2009 Georg Fritzsche,
 #include <string.h>
 #include <iostream>
 
-SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, int debugflag) 
+SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, int debugflag, std::string logfile) 
   : m_host(host)
   , m_player()
   , m_valid(false)
   , m_loglevel(0)
+  , m_logfile(logfile)
   , m_url("")
   , m_autoplay(false)
   , m_resetprop(false)
@@ -131,7 +132,7 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
 
     try 
     {
-        m_player  = MediaPlayerPtr(new MediaPlayer(playerId, slotId, logLevel, debugflag));
+        m_player  = MediaPlayerPtr(new MediaPlayer(playerId, slotId, logLevel, debugflag, logfile));
         m_valid   = true;
     } 
     catch(const MediaPlayer::InitializationException&) 

@@ -162,7 +162,7 @@ fprintf(stderr,"****************** activateVideo: %d OK\n",context->slotId);
     }
 };
 
-MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag)
+MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag, std::string logfile)
   : m_context()
   , m_version("")
   , m_type("DirectDraw")
@@ -173,6 +173,7 @@ MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel,
     logLevel = loglevel;
     FBLOG_INFO("", "MediaPlayer( pluginId: "<<pluginIdentifier<<", slotId: "<<slotIdentifier<<", logLevel: "<<loglevel<<")");
     xplayer_API_setloglevel(slotId, logLevel);
+    xplayer_API_setlogfile(logfile.c_str());
     xplayer_API_setdebug(slotId, debugflag);
 
     try
@@ -722,6 +723,9 @@ fprintf(stderr,"setWindow openGL inited. slot: %d window: %x\n",priv->slot,g_win
 /////////// Load texture GL /////////////
 /////////////////////////////////////////
 //fprintf(stderr,"Load texture: %dx%d %s\n",img->width,img->height,vo_format_name(img->imgfmt));
+#ifdef DEBUGPRINT
+fprintf(stderr,"Load texture. slot: %d img: %p\n",priv->slot,img);
+#endif
 #if 1
                         glBindTexture( GL_TEXTURE_2D, g_textureID );
                         glTexImage2D( GL_TEXTURE_2D, 0, 3, img->width, img->height,
@@ -761,6 +765,7 @@ fprintf(stderr,"setWindow openGL inited. slot: %d window: %x\n",priv->slot,g_win
                         img->planes[1] = img->planes[2];
                         img->planes[2] = tmp;
                     }
+                    xplayer_API_imagedone(priv->slot);
                 }
             }
 

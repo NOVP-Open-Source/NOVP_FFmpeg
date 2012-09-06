@@ -88,6 +88,7 @@ FB::JSAPIPtr SPlayerPlugin::createJSAPI()
 {
     int loglevel = 0;
     int debugflag = 0;
+    std::string logfile;
     boost::optional<std::string> par = getParam("loglevel");
     if(par.is_initialized())
     {
@@ -98,8 +99,13 @@ FB::JSAPIPtr SPlayerPlugin::createJSAPI()
     {
         debugflag = atoi(par.get().c_str());
     }
+    par = getParam("logfile");
+    if(par.is_initialized())
+    {
+        logfile = par.get();
+    }
     FBLOG_INFO("","SPlayerPlugin log level: " << loglevel);
-    m_player = SPlayerPtr(new SPlayer(m_host, playerId, slotId, loglevel, debugflag));
+    m_player = SPlayerPtr(new SPlayer(m_host, playerId, slotId, loglevel, debugflag, logfile));
 
     for (FB::VariantMap::const_iterator it = m_params.begin(); it != m_params.end(); ++it)
     {

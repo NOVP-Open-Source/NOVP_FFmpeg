@@ -35,7 +35,7 @@ public:
         InitializationException(const char* const what) : std::runtime_error(what) {}
     };
 
-    MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag);
+    MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag, std::string logfile);
     ~MediaPlayer();
 
     const std::string& version() const;

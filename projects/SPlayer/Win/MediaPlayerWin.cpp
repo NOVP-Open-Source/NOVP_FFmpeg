@@ -176,7 +176,7 @@ namespace
     }
 };
 
-MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag)
+MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag, std::string logfile)
   : m_context()
   , m_version("")
   , m_type("DirectDraw")
@@ -187,6 +187,7 @@ MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel,
     slotId = slotIdentifier;
     logLevel = loglevel;
     xplayer_API_setloglevel(slotId, logLevel);
+    xplayer_API_setlogfile(logfile.c_str());
     xplayer_API_setdebug(slotId, debugflag);
 
     try

@@ -24,7 +24,7 @@ class MediaPlayer;
 class SPlayer : public FB::JSAPIAuto
 {
 public:
-    SPlayer(FB::BrowserHostPtr host, int pluginId, int slotId, int loglevel, int debugflag);
+    SPlayer(FB::BrowserHostPtr host, int pluginId, int slotId, int loglevel, int debugflag, std::string logfile);
     virtual ~SPlayer();
 
     int playerId;
@@ -127,6 +127,7 @@ private:
     MediaPlayerPtr m_player;
     bool m_valid;
     int m_loglevel;
+    std::string m_logfile;
     std::string m_url;
     bool m_autoplay;
     bool m_resetprop;
