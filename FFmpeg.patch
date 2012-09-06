@@ -16,7 +16,7 @@ Index: libavformat/tcp.c
 ===================================================================
 --- FFmpeg/libavformat/tcp.c
 +++ FFmpeg/libavformat/tcp.c
-@@ -179,7 +179,8 @@
+@@ -179,7 +179,12 @@
          if (ret < 0)
              return ret;
      }
@@ -24,7 +24,7 @@ Index: libavformat/tcp.c
 +//    ret = send(s->fd, buf, size, 0);
 +    #ifdef __APPLE__
 +      ret = send(s->fd, buf, size, SO_NOSIGPIPE);
-+    # else
++    #else
 +      ret = send(s->fd, buf, size, MSG_NOSIGNAL);
 +    #endif
      return ret < 0 ? ff_neterrno() : ret;
