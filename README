@@ -8,7 +8,7 @@
  Lincensing         -> LICENSE
  History            -> NEWS
  
- To clone the repository use 
+ To clone the repository with all the submodules use 
    git clone --recursive git://github.com/Cae-Engineering/splayer
 
 ############################
@@ -33,7 +33,9 @@ Mac OS X:
 
 Mac OS X:
   1, ./mac.sh
-  2, Open and compile with XCode 'build/FireBreath.xcodeproj'
+  2, Open 'build/FireBreath.xcodeproj' with XCode
+  3, Set the active scheme to Splayer
+  4, Compile
 
 ############################
 #        4. Credits        #
