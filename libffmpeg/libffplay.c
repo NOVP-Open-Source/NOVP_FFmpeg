@@ -237,7 +237,13 @@ static void master_init(int callerid) {
     xplayer_global_status->audioprefill=AUDIO_PREFILL;
     xplayer_global_status->audiobuffersize=AUDIO_BUFFER_SIZE;
     xplayer_global_status->itertime=AUDIO_ITERTIME;
-    xplayer_global_status->ffmpegpriv=xplayer_init(loglevel);
+    av_log_set_level(loglevel);
+    avcodec_register_all();
+//#if CONFIG_AVFILTER
+    avfilter_register_all();
+//#endif
+    av_register_all();
+    avformat_network_init();
     if (av_lockmgr_register(lockmgr)) {
         av_log(NULL, AV_LOG_ERROR, "[error] master_init(): Could not initialize lock manager!\n");
 //        do_exit(NULL);
@@ -456,7 +462,7 @@ static void *audio_process(void *data) {
     int len;
 
     xplayer_global_status->run=1;
-    systime=xplayer_clock(NULL);
+    systime=xplayer_clock();
     alen=xplayer_global_status->audio->nch*format_2_bps(xplayer_global_status->audio->format)*xplayer_global_status->audio->rate;
     iterbytes=af_time2len(xplayer_global_status->audio,xplayer_global_status->itertime);
     while (xplayer_global_status->run) {
@@ -477,7 +483,7 @@ static void *audio_process(void *data) {
 #endif
         audiodebugslot(-1);
 
-        systimenext=xplayer_clock(NULL);
+        systimenext=xplayer_clock();
         ftime=ml=af_time2len(xplayer_global_status->audio, systimenext-systime+systimediff);
         systimediff+=(systimenext-systime)-af_len2time(xplayer_global_status->audio,ml);
 
@@ -485,7 +491,7 @@ static void *audio_process(void *data) {
         ml=af_round_len(xplayer_global_status->audio,ml);
         if(ml>=iterbytes) {
 
-            ptimes=xplayer_clock(NULL);
+            ptimes=xplayer_clock();
             audiodebugpass(1);
             af_data=af_emptyfromdata(xplayer_global_status->audio, ml);
             pthread_mutex_lock(&xplayer_global_status->audiomutex);
@@ -545,7 +551,7 @@ static void *audio_process(void *data) {
 
             systime=systimenext;
         } else {
-            ml=(xplayer_global_status->itertime-ptimes+xplayer_clock(NULL))*1000000.0;
+            ml=(xplayer_global_status->itertime-ptimes+xplayer_clock())*1000000.0;
             if(ml<30000 && ml>100)
                 usleep(ml);
             else
@@ -729,15 +735,6 @@ void xplayer_API_done() {
 #endif
         xplayer_global_status->audio=af_data_free(xplayer_global_status->audio);
         pthread_mutex_destroy(&xplayer_global_status->audiomutex);
-#ifdef DEBUG_DONE
-        av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Wait for uninit ffmpeg...\n");
-#endif
-        if(xplayer_global_status->ffmpegpriv)
-            xplayer_uninit(xplayer_global_status->ffmpegpriv);
-#ifdef DEBUG_DONE
-        av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Done uninit ffmpeg...\n");
-#endif
-        xplayer_global_status->ffmpegpriv=NULL;
         free(xplayer_global_status);
         xplayer_global_status=NULL;
 
@@ -5182,7 +5179,6 @@ static int stream_component_open(VideoState *is, int stream_index)
     avctx->skip_frame= is->slotinfo->skip_frame;
     avctx->skip_idct= is->slotinfo->skip_idct;
     avctx->skip_loop_filter= is->slotinfo->skip_loop_filter;
-//    avctx->error_recognition= is->slotinfo->error_recognition;
     avctx->error_concealment= is->slotinfo->error_concealment;
     if(avctx->codec_type==AVMEDIA_TYPE_VIDEO && is->slotinfo->imgfmt) {
         avctx->request_sample_fmt = imgfmt2pixfmt(is->slotinfo->imgfmt);
@@ -6381,8 +6377,6 @@ static void *player_process(void *data)
     }
     slotinfo->status&=~(STATUS_PLAYER_INITED);
     /* never returns */
-    if(slotinfo->playerpriv)
-        xplayer_uninit(slotinfo->playerpriv);
     if(slotinfo->url)
         free(slotinfo->url);
     if(slotinfo->opt_def)

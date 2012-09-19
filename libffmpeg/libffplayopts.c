@@ -410,9 +410,8 @@ static int opt_codec(slotinfo_t* slotinfo, void *o, const char *opt, const char 
 void init_options(slotinfo_t* slotinfo)
 {
     slotinfo->sws_opts = sws_getContext(16, 16, 0, 16, 16, 0, SWS_BICUBIC, NULL, NULL, NULL);
-    slotinfo->error_recognition = FF_ER_CAREFUL;
 
-    OptionDef* opt = calloc(28,sizeof(OptionDef));
+    OptionDef* opt = calloc(27,sizeof(OptionDef));
 
     opt[0].name="ast";
     opt[0].flags=OPT_INT | HAS_ARG | OPT_EXPERT;
@@ -516,60 +515,54 @@ void init_options(slotinfo_t* slotinfo)
     opt[16].help="set idct algo";
     opt[16].argname="algo";
 
-    opt[17].name="er";
+    opt[17].name="ec";
     opt[17].flags=OPT_INT | HAS_ARG | OPT_EXPERT;
-    opt[17].u.dst_ptr=(void*)&slotinfo->error_recognition;
-    opt[17].help="set error detection threshold (0-4)";
-    opt[17].argname="threshold";
+    opt[17].u.dst_ptr=(void*)&slotinfo->error_concealment;
+    opt[17].help="set error concealment options";
+    opt[17].argname="bit_mask";
 
-    opt[18].name="ec";
-    opt[18].flags=OPT_INT | HAS_ARG | OPT_EXPERT;
-    opt[18].u.dst_ptr=(void*)&slotinfo->error_concealment;
-    opt[18].help="set error concealment options";
-    opt[18].argname="bit_mask";
+    opt[18].name="sync";
+    opt[18].flags=HAS_ARG | OPT_EXPERT;
+    opt[18].u.func_arg=(void*)opt_sync;
+    opt[18].help="set audio-video sync. type (type=audio/video/ext)";
+    opt[18].argname="type";
 
-    opt[19].name="sync";
-    opt[19].flags=HAS_ARG | OPT_EXPERT;
-    opt[19].u.func_arg=(void*)opt_sync;
-    opt[19].help="set audio-video sync. type (type=audio/video/ext)";
-    opt[19].argname="type";
+    opt[19].name="loop";
+    opt[19].flags=OPT_INT | HAS_ARG | OPT_EXPERT;
+    opt[19].u.dst_ptr=(void*)&slotinfo->loop;
+    opt[19].help="set number of times the playback shall be looped";
+    opt[19].argname="loop count";
 
-    opt[20].name="loop";
-    opt[20].flags=OPT_INT | HAS_ARG | OPT_EXPERT;
-    opt[20].u.dst_ptr=(void*)&slotinfo->loop;
-    opt[20].help="set number of times the playback shall be looped";
-    opt[20].argname="loop count";
+    opt[20].name="framedrop";
+    opt[20].flags=OPT_BOOL | OPT_EXPERT;
+    opt[20].u.dst_ptr=(void*)&slotinfo->framedrop;
+    opt[20].help="drop frames when cpu is too slow";
+    opt[20].argname="";
 
-    opt[21].name="framedrop";
-    opt[21].flags=OPT_BOOL | OPT_EXPERT;
-    opt[21].u.dst_ptr=(void*)&slotinfo->framedrop;
-    opt[21].help="drop frames when cpu is too slow";
-    opt[21].argname="";
+    opt[21].name="rdftspeed";
+    opt[21].flags=OPT_INT | HAS_ARG| OPT_AUDIO | OPT_EXPERT;
+    opt[21].u.dst_ptr=(void*)&slotinfo->rdftspeed;
+    opt[21].help="rdft speed";
+    opt[21].argname="msecs";
 
-    opt[22].name="rdftspeed";
-    opt[22].flags=OPT_INT | HAS_ARG| OPT_AUDIO | OPT_EXPERT;
-    opt[22].u.dst_ptr=(void*)&slotinfo->rdftspeed;
-    opt[22].help="rdft speed";
-    opt[22].argname="msecs";
+    opt[22].name="default";
+    opt[22].flags=HAS_ARG | OPT_AUDIO | OPT_VIDEO | OPT_EXPERT;
+    opt[22].u.func_arg=(void*)opt_default;
+    opt[22].help="generic catch all option";
+    opt[22].argname="";
 
-    opt[23].name="default";
-    opt[23].flags=HAS_ARG | OPT_AUDIO | OPT_VIDEO | OPT_EXPERT;
-    opt[23].u.func_arg=(void*)opt_default;
-    opt[23].help="generic catch all option";
-    opt[23].argname="";
-
-    opt[24].name="codec";
-    opt[24].flags=HAS_ARG | OPT_FUNC2;
-    opt[24].u.func2_arg=(void*)opt_codec;
-    opt[24].help="force decoder";
-    opt[24].argname="decoder";
+    opt[23].name="codec";
+    opt[23].flags=HAS_ARG | OPT_FUNC2;
+    opt[23].u.func2_arg=(void*)opt_codec;
+    opt[23].help="force decoder";
+    opt[23].argname="decoder";
 
 #if CONFIG_AVFILTER
-    opt[25].name="vf";
-    opt[25].flags=OPT_STRING | HAS_ARG;
-    opt[25].u.dst_ptr=(void*)&vfilters;
-    opt[25].help="video filters";
-    opt[25].argname="filter list";
+    opt[24].name="vf";
+    opt[24].flags=OPT_STRING | HAS_ARG;
+    opt[24].u.dst_ptr=(void*)&vfilters;
+    opt[24].help="video filters";
+    opt[24].argname="filter list";
 #endif
     slotinfo->opt_def = opt;
 }

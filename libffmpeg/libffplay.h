@@ -183,7 +183,6 @@ typedef struct {
     double              audiobuffersize;
     double              itertime;
     int                 run;
-    void*               ffmpegpriv;
 
     pthread_mutex_t     audiomutex;
     pthread_t           thread;

@@ -26,7 +26,7 @@ set (SOURCES
 
 add_x11_plugin(${PROJECT_NAME} SOURCES)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../../work/sipalsa)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../sipalsa)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg)
 
 # add library dependencies here; leave ${PLUGIN_INTERNAL_DEPS} there unless you know what you're doing!
@@ -47,6 +47,6 @@ target_link_libraries(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libswresample.a
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libavutil.a
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libswscale.a
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../work/sipalsa/libsipalsa.a
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../sipalsa/libsipalsa.a
     )
 

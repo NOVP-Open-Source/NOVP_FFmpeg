@@ -334,7 +334,6 @@ int audio_ffmpeg_format(int sample_fmt);
 char* audio_format_name(int format, char* str, int size);
 const char* audio_format_name_short(int format);
 
-
 typedef struct {
     int valid;
     int streamid;
@@ -352,45 +351,7 @@ typedef struct {
     int format;
 } audio_info_t;
 
-void*           xplayer_init(int loglevel);
-int             xplayer_open(void* priv, const char* filename, int noaudio);
-int             xplayer_read(void* priv);
-int             xplayer_cache_read(void* priv);
-int             xplayer_loop(void* priv);
-int             xplayer_vloop(void* priv);
-int             xplayer_aloop(void* priv);
-int             xplayer_close(void* priv);
-void            xplayer_uninit(void* priv);
-double          xplayer_clock(void* priv);
-
-int             xplayer_buffer_size(void* priv);
-int             xplayer_get_buffered_packet(void* priv);
-int             xplayer_set_buffered_packet(void* priv, int pno);
-
-double          xplayer_pts(void* priv);
-double          xplayer_rpts(void* priv);
-
-void            xplayer_setimage(void* priv, int w, int h, unsigned int fmt);
-int             xplayer_isnewimage(void* priv);
-mp_image_t*     xplayer_getimage(void* priv);
-double          xplayer_vpts(void* priv);
-
-double          xplayer_rapts(void* priv);
-double          xplayer_rvpts(void* priv);
-
-int             xplayer_audiolen(void* priv);
-char*           xplayer_audio(void* priv);
-int             xplayer_audiorate(void* priv);
-int             xplayer_audioch(void* priv);
-int             xplayer_audiofmt(void* priv);
-double          xplayer_apts(void* priv);
-
-int             xplayer_seek(void* priv, double timestamp);
-double          xplayer_duration(void* priv);
-double          xplayer_framerate(void* priv);
-
-int             xplayer_video_info(void* priv, video_info_t* video_info);
-int             xplayer_audio_info(void* priv, audio_info_t* audio_info);
+double xplayer_clock();
 
 /// API
 
