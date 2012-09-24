@@ -3629,7 +3629,7 @@ static int input_get_buffer(AVCodecContext *codec, AVFrame *pic)
         pic->linesize[i] = ref->linesize[i];
     }
     pic->opaque = ref;
-    pic->age    = INT_MAX;
+//    pic->age    = INT_MAX;
     pic->type   = FF_BUFFER_TYPE_USER;
     pic->reordered_opaque = codec->reordered_opaque;
     if(codec->pkt) pic->pkt_pts = codec->pkt->pts;
@@ -4929,7 +4929,7 @@ static int vda_get_buffer(struct AVCodecContext *c, AVFrame *pic)
     pic->data[0]=1;
     pic->data[1]=1;
     pic->data[3]=1;
-    pic->age=1;
+//    pic->age=1;
     pic->type=FF_BUFFER_TYPE_USER;
 	return 1;
 }
