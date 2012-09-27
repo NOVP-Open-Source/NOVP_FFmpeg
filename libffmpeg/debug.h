@@ -51,6 +51,8 @@ typedef struct {
     double vcpts;
     unsigned long long int abytes;
     unsigned int ablen;
+    unsigned int apicall;
+    char msg[512];
 } slotdebug_t;
 
 void*           debugmem_open(int id);

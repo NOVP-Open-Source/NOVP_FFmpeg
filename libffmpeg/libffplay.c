@@ -190,6 +190,35 @@ void av_log_callback(void* ptr, int level, const char* fmt, va_list vl)
     }
 }
 
+void printdebugbuffer(int slotid, char *format_str, ...) {
+#ifdef USE_DEBUG_LIB
+    va_list ap;
+    char msg[512];
+
+    if(dmem && slotid<MAX_DEBUG_SLOT) {
+        slotdebug_t* slotdebugs = debugmem_getslot(dmem);
+        if(slotdebugs) {
+            memset(msg,0,sizeof(msg));
+            va_start(ap,format_str);
+            (void)vsnprintf(msg,sizeof(msg),format_str,ap);
+            va_end(ap);
+            snprintf(slotdebugs[slotid].msg,sizeof(slotdebugs[slotid].msg),"%s",msg);
+        }
+    }
+#endif
+}
+
+void apicall(int slotid, int callid) {
+#ifdef USE_DEBUG_LIB
+    if(dmem && slotid<MAX_DEBUG_SLOT) {
+        slotdebug_t* slotdebugs = debugmem_getslot(dmem);
+        if(slotdebugs) {
+            slotdebugs[slotid].apicall=callid;
+        }
+    }
+#endif
+}
+
 static void *player_process(void *data);
 static void *audio_process(void *data);
 
@@ -982,22 +1011,26 @@ double xplayer_API_getmovielength(int slot) {
     if(!slotinfo->status) {
         return length;
     }
+    apicall(slot, 1);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->length>0.0) {
         length = slotinfo->length;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return length;
 }
 
 int xplayer_API_setimage(int slot, int w, int h, unsigned int fmt) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
+    apicall(slot, 2);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->w=w;
     slotinfo->h=h;
     slotinfo->imgfmt=fmt;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_setimage(): %dx%d %s\n",w,h,vo_format_name(fmt));
     return 0;
 }
@@ -1005,9 +1038,11 @@ int xplayer_API_setimage(int slot, int w, int h, unsigned int fmt) {
 int xplayer_API_setvda(int slot, int vda) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
+    apicall(slot, 3);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->vda=vda;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return 0;
 }
 
@@ -1015,9 +1050,11 @@ int xplayer_API_isvda(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = 0;
 
+    apicall(slot, 4);
     pthread_mutex_lock(&slotinfo->mutex);
     ret = slotinfo->usesvda;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1025,20 +1062,24 @@ int xplayer_API_enableaudio(int slot, int enable) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
     av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_enableaudio(): %d slot: %d\n",enable,slot);
+    apicall(slot, 5);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->audio_disable=!enable;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return 0;
 }
 
 int xplayer_API_setbuffertime(int slot, double sec) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
+    apicall(slot, 6);
     pthread_mutex_lock(&slotinfo->mutex);
 #ifndef USE_AUDIO_DECODE_NEW
     slotinfo->buffer_time=sec;
 #endif
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return 0;
 }
 
@@ -1053,6 +1094,7 @@ int xplayer_API_loadurl(int slot, char* url) {
         xplayer_API_setoptions(slot, "rtsp_transport", "http");
         slotinfo->set_rtsp_transport=0;
     }
+    apicall(slot, 7);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && url && strcmp(slotinfo->url,url)) {
         if(slotinfo->status) {
@@ -1076,6 +1118,7 @@ int xplayer_API_loadurl(int slot, char* url) {
 #endif
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return 0;
 }
 
@@ -1083,11 +1126,13 @@ char* xplayer_API_geturl(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     char* url = NULL;
 
+    apicall(slot, 8);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->status) {
         url=slotinfo->url;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return url;
 }
 
@@ -1096,6 +1141,7 @@ int xplayer_API_unloadurl(int slot) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 9);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->playflag=0;
     slotinfo->pauseflag=0;
@@ -1109,6 +1155,7 @@ int xplayer_API_unloadurl(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1117,6 +1164,7 @@ int xplayer_API_play(int slot) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 10);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->pauseafterload=0;
     if(slotinfo->url) {
@@ -1135,6 +1183,7 @@ int xplayer_API_play(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1143,6 +1192,7 @@ int xplayer_API_pause(int slot) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 11);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->pauseafterload=0;
     if(slotinfo->url && slotinfo->status) {
@@ -1155,6 +1205,7 @@ int xplayer_API_pause(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1163,6 +1214,7 @@ int xplayer_API_flush(int slot) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 12);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         event.type = QUEUE_FLUSH_EVENT;
@@ -1171,6 +1223,7 @@ int xplayer_API_flush(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1179,6 +1232,7 @@ int xplayer_API_pause_step(int slot) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 13);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         if(slotinfo->pauseflag) {
@@ -1189,6 +1243,7 @@ int xplayer_API_pause_step(int slot) {
         }
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1197,6 +1252,7 @@ int xplayer_API_stop(int slot) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 14);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->playflag=0;
     slotinfo->pauseflag=0;
@@ -1207,6 +1263,7 @@ int xplayer_API_stop(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1215,6 +1272,7 @@ int xplayer_API_seek(int slot, double pos) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 15);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         event.type = SEEK_EVENT;
@@ -1225,6 +1283,7 @@ int xplayer_API_seek(int slot, double pos) {
         slotinfo->seekflag=1;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1233,6 +1292,7 @@ int xplayer_API_seekpos(int slot, double pos) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 16);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         event.type = SEEK_EVENT;
@@ -1243,6 +1303,7 @@ int xplayer_API_seekpos(int slot, double pos) {
         slotinfo->seekflag=1;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1251,6 +1312,7 @@ int xplayer_API_seekrel(int slot, double pos) {
     int ret = -1;
     event_t event;
 
+    apicall(slot, 17);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         event.type = SEEK_REL_EVENT;
@@ -1261,6 +1323,7 @@ int xplayer_API_seekrel(int slot, double pos) {
         slotinfo->seekflag=1;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1271,10 +1334,12 @@ int xplayer_API_volume(int slot, int volume) {
     if(volume<0 || volume>100) {
         return -1;
     }
+    apicall(slot, 18);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->volume=volume;
     slotinfo->setvolume=1;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return 0;
 }
 
@@ -1282,19 +1347,23 @@ int xplayer_API_getvolume(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret;
 
+    apicall(slot, 19);
     pthread_mutex_lock(&slotinfo->mutex);
     ret=slotinfo->volume;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
 int xplayer_API_mute(int slot, int mute) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
+    apicall(slot, 20);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->mute=mute;
     slotinfo->setmute=1;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return 0;
 }
 
@@ -1302,9 +1371,11 @@ int xplayer_API_getmute(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret;
 
+    apicall(slot, 21);
     pthread_mutex_lock(&slotinfo->mutex);
     ret=slotinfo->mute;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1313,9 +1384,11 @@ int xplayer_API_getstatus(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret;
 
+    apicall(slot, 22);
     pthread_mutex_lock(&slotinfo->mutex);
     ret=slotinfo->status;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1323,11 +1396,13 @@ double xplayer_API_getcurrentpts(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     double currentpos = 0.0;
 
+    apicall(slot, 23);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         currentpos = slotinfo->currentpos;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return currentpos;
 }
 
@@ -1335,11 +1410,13 @@ double xplayer_API_getrealpts(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     double realpos = 0.0;
 
+    apicall(slot, 24);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         realpos = slotinfo->realpos;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return realpos;
 }
 
@@ -1347,11 +1424,13 @@ double xplayer_API_getfps(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     double fps = 0.0;
 
+    apicall(slot, 25);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && slotinfo->status) {
         fps = slotinfo->fps;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return fps;
 }
 
@@ -1360,6 +1439,7 @@ int xplayer_API_isnewimage(int slot) {
     );
     int ret = -1;
 
+    apicall(slot, 26);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url) {
         ret=0;
@@ -1370,6 +1450,7 @@ int xplayer_API_isnewimage(int slot) {
         slotinfo->status&=~(STATUS_PLAYER_IMAGE);
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1377,10 +1458,12 @@ int xplayer_API_getimage(int slot, mp_image_t** img) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = -1;
 
+    apicall(slot, 0);
     if(!img) {
         return ret;
     }
     *img=NULL;
+    apicall(slot, 27);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->doneflag==2)
         slotinfo->doneflag=0;
@@ -1404,6 +1487,7 @@ int xplayer_API_getimage(int slot, mp_image_t** img) {
         }
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1412,6 +1496,7 @@ int xplayer_API_imagedone(int slot) {
     int ret = -1;
 
 #ifdef USE_LOCKIMAGE
+    apicall(slot, 28);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->lockimg) {
         if(slotinfo->freeablelockimg) {
@@ -1423,6 +1508,7 @@ int xplayer_API_imagedone(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
 #endif
     return ret;
 }
@@ -1433,6 +1519,7 @@ int xplayer_API_vdaframedone(int slot) {
 #if defined(__APPLE__)
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
+    apicall(slot, 29);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->lockvdaframe) {
             vdaframeno--;
@@ -1442,6 +1529,7 @@ int xplayer_API_vdaframedone(int slot) {
         ret=0;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
 #endif
 #endif
     return ret;
@@ -1457,6 +1545,7 @@ int xplayer_API_freeableimage(int slot, mp_image_t** img) {
     }
     *img = NULL;
     ret = 1;
+    apicall(slot, 30);
     pthread_mutex_lock(&slotinfo->mutex);
     for(i=0;i<MAX_IMAGES;i++) {
         if(slotinfo->freeable_images[i]) {
@@ -1466,6 +1555,7 @@ int xplayer_API_freeableimage(int slot, mp_image_t** img) {
         }
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1477,6 +1567,7 @@ int xplayer_API_freeimage(int slot, mp_image_t* img) {
     if(!img) {
         return ret;
     }
+    apicall(slot, 31);
     pthread_mutex_lock(&slotinfo->mutex);
     for(i=0;i<MAX_IMAGES;i++) {
         if(slotinfo->freeable_images[i]==img) {
@@ -1491,6 +1582,7 @@ int xplayer_API_freeimage(int slot, mp_image_t* img) {
         pthread_cond_signal(&slotinfo->freeable_cond);
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1499,6 +1591,7 @@ int xplayer_API_videoprocessdone(int slot) {
     int ret = 1;
     int i;
 
+    apicall(slot, 32);
     pthread_mutex_lock(&slotinfo->mutex);
     av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_videoprocessdone(): slot: %d \n",slotinfo->slotid);
     slotinfo->doneflag=2;
@@ -1524,6 +1617,7 @@ int xplayer_API_videoprocessdone(int slot) {
     pthread_cond_signal(&slotinfo->freeable_cond);
     av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_videoprocessdone(): slot: %d OK \n",slotinfo->slotid);
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1535,6 +1629,7 @@ int xplayer_API_getvdaframe(int slot, void** vdaframe) {
         return ret;
     }
     *vdaframe=NULL;
+    apicall(slot, 33);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->doneflag==2)
         slotinfo->doneflag=0;
@@ -1562,6 +1657,7 @@ int xplayer_API_getvdaframe(int slot, void** vdaframe) {
         }
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1590,6 +1686,7 @@ int xplayer_API_freeablevdaframe(int slot, void** vdaframe) {
     }
     *vdaframe = NULL;
     ret = 1;
+    apicall(slot, 34);
     pthread_mutex_lock(&slotinfo->mutex);
     for(i=0;i<MAX_IMAGES;i++) {
         if(slotinfo->freeable_vdaframe[i]) {
@@ -1599,6 +1696,7 @@ int xplayer_API_freeablevdaframe(int slot, void** vdaframe) {
         }
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1610,6 +1708,7 @@ int xplayer_API_freevdaframe(int slot, void* vdaframe) {
     if(!vdaframe) {
         return ret;
     }
+    apicall(slot, 35);
     pthread_mutex_lock(&slotinfo->mutex);
     for(i=0;i<MAX_IMAGES;i++) {
         if(slotinfo->freeable_vdaframe[i]==vdaframe) {
@@ -1627,6 +1726,7 @@ int xplayer_API_freevdaframe(int slot, void* vdaframe) {
         pthread_cond_signal(&slotinfo->freeable_cond);
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1707,6 +1807,7 @@ int xplayer_API_setvideocodec(int slot, char* name)
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = -1;
 
+    apicall(slot, 36);
     pthread_mutex_lock(&slotinfo->mutex);
     ret = 0;
     if(slotinfo->video_codec_name)
@@ -1715,6 +1816,7 @@ int xplayer_API_setvideocodec(int slot, char* name)
     if(name)
         slotinfo->video_codec_name=strdup(name);
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1723,6 +1825,7 @@ int xplayer_API_setaudiocodec(int slot, char* name)
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = -1;
 
+    apicall(slot, 37);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->audio_codec_name)
         free(slotinfo->audio_codec_name);
@@ -1731,6 +1834,7 @@ int xplayer_API_setaudiocodec(int slot, char* name)
         slotinfo->audio_codec_name=strdup(name);
     ret = 0;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1739,6 +1843,7 @@ int xplayer_API_setsubtitlecodec(int slot, char* name)
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = -1;
 
+    apicall(slot, 38);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->subtitle_codec_name)
         free(slotinfo->subtitle_codec_name);
@@ -1747,6 +1852,7 @@ int xplayer_API_setsubtitlecodec(int slot, char* name)
         slotinfo->subtitle_codec_name=strdup(name);
     ret = 0;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1755,6 +1861,7 @@ int xplayer_API_setsynctype(int slot, int synctype)
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = -1;
 
+    apicall(slot, 39);
     pthread_mutex_lock(&slotinfo->mutex);
     switch(synctype) {
         case SYNC_TYPE_AUDIO:
@@ -1771,6 +1878,7 @@ int xplayer_API_setsynctype(int slot, int synctype)
             break;
     }
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1779,10 +1887,12 @@ int xplayer_API_sethwbuffersize(int slot, int size)
     slotinfo_t* slotinfo = get_slot_info(slot,1);
     int ret = -1;
 
+    apicall(slot, 40);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->audio_hw_buf_size=size;
     ret=0;
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1795,10 +1905,12 @@ int xplayer_API_setoptions(int slot, const char *opt, const char *arg)
     {
         slotinfo->set_rtsp_transport=1;
     }
+    apicall(slot, 41);
     pthread_mutex_lock(&slotinfo->mutex);
     parse_option(slotinfo, opt, "");
     ret=parse_option(slotinfo, opt, arg);
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -1806,9 +1918,11 @@ char* xplayer_API_getstatusline(int slot)
 {
     char* ret = NULL;
     slotinfo_t* slotinfo = get_slot_info(slot,1);
+    apicall(slot, 42);
     pthread_mutex_lock(&slotinfo->mutex);
     ret = strdup(slotinfo->statusline);
     pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
     return ret;
 }
 
@@ -3402,14 +3516,15 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         }
         if (is->img_convert_ctx == NULL) {
             av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
+            pthread_mutex_unlock(&is->slotinfo->mutex);
             do_exit(is);
+            return -1;
         }
 #if defined(__APPLE__)
         if(is->usesvda)
         {
             if(is->usesvda==FLAG_VDA_FRAME)
             {
-               pthread_mutex_lock(&is->slotinfo->mutex);
                if(vp->vdaframe && is->slotinfo->vdaframe!=vp->vdaframe) {
                     add_freeable_vdaframe(is->slotinfo, vp->vdaframe, 1);
                 }
@@ -3418,7 +3533,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
                     vdaframeno++;
                     vdaframes_pop++;
                 }
-                pthread_mutex_unlock(&is->slotinfo->mutex);
             }
             else
             {
@@ -5528,6 +5642,7 @@ static void* read_thread(void *arg)
     ic->interrupt_callback.opaque = is;
     ic->interrupt_callback.callback = decode_interrupt_cb;
     is->slotinfo->status|=STATUS_PLAYER_CONNECT;
+    printdebugbuffer(is->slotinfo->slotid, "Open: '%s'", is->filename);
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass1 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
@@ -5537,6 +5652,7 @@ static void* read_thread(void *arg)
 #endif
     if (err < 0) {
         print_error(is->filename, err);
+        printdebugbuffer(is->slotinfo->slotid, "Open error: %d. (%s)", err, is->filename);
         ret = -1;
         goto fail;
     }
@@ -5557,6 +5673,7 @@ static void* read_thread(void *arg)
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass3 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
+    printdebugbuffer(is->slotinfo->slotid, "Find stream info. (%s)", is->filename);
     opts = setup_find_stream_info_opts(ic, is->slotinfo->codec_opts);
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass4 '%s' \n",is->slotinfo->slotid,is->filename);
@@ -5568,12 +5685,14 @@ static void* read_thread(void *arg)
         av_log(NULL, AV_LOG_ERROR, "[error] read_thread(): slot: %d filename: %s: could not find codec parameters\n", 
                 is->slotinfo->slotid,
                 is->filename);
+        printdebugbuffer(is->slotinfo->slotid, "Info error: %d. (%s)", err, is->filename);
         ret = -1;
         goto fail;
     }
     for (i = 0; i < orig_nb_streams; i++)
         av_dict_free(&opts[i]);
     av_freep(&opts);
+    printdebugbuffer(is->slotinfo->slotid, "Info OK. (%s)", is->filename);
 
     if(ic->pb)
         ic->pb->eof_reached= 0; //FIXME hack, ffplay maybe should not use url_feof() to test for the end
@@ -5601,6 +5720,7 @@ static void* read_thread(void *arg)
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass5 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
+    printdebugbuffer(is->slotinfo->slotid, "Find best stream. (%s)", is->filename);
     for (i = 0; i < ic->nb_streams; i++)
         ic->streams[i]->discard = AVDISCARD_ALL;
     if (!is->slotinfo->video_disable)
@@ -5630,6 +5750,7 @@ static void* read_thread(void *arg)
 #endif
     is->show_mode = is->slotinfo->show_mode;
 
+    printdebugbuffer(is->slotinfo->slotid, "Open streams. (%s)", is->filename);
     /* open the streams */
     if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
         stream_component_open(is, st_index[AVMEDIA_TYPE_AUDIO]);
@@ -5664,6 +5785,7 @@ static void* read_thread(void *arg)
     if (is->video_stream < 0 && is->audio_stream < 0) {
         av_log(NULL, AV_LOG_ERROR, "[error] read_thread(): %s: could not open codecs\n", is->filename);
         ret = -1;
+        printdebugbuffer(is->slotinfo->slotid, "Open streams error. (%s)", is->filename);
         goto fail;
     }
 
@@ -5671,6 +5793,7 @@ static void* read_thread(void *arg)
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass10 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
+    printdebugbuffer(is->slotinfo->slotid, "Open streams OK. (%s)", is->filename);
     for(;;) {
 
 #ifdef USE_DEBUG_LIB
@@ -6344,6 +6467,27 @@ static void *player_process(void *data)
 {
     slotinfo_t* slotinfo = (slotinfo_t*)data;
     VideoState *is = NULL;
+#ifdef USE_DEBUG_LIB
+    if(dmem && slotinfo->slotid<MAX_DEBUG_SLOT) {
+        slotdebug_t* slotdebugs = debugmem_getslot(dmem);
+        if(slotdebugs) {
+            if(!slotdebugs[slotinfo->slotid].uses) {
+                slotdebugs[slotinfo->slotid].slotid=slotinfo->slotid;
+                slotdebugs[slotinfo->slotid].master_clock=0.0;
+                slotdebugs[slotinfo->slotid].av_diff=0;
+                slotdebugs[slotinfo->slotid].framedrop=0;
+                slotdebugs[slotinfo->slotid].aqsize=0;
+                slotdebugs[slotinfo->slotid].vqsize=0;
+                slotdebugs[slotinfo->slotid].sqsize=0;
+                slotdebugs[slotinfo->slotid].f1=0;
+                slotdebugs[slotinfo->slotid].f2=0;
+                slotdebugs[slotinfo->slotid].vqtime=0.0;
+                slotdebugs[slotinfo->slotid].aqtime=0.0;
+                slotdebugs[slotinfo->slotid].uses=1;
+            }
+        }
+    }
+#endif
 
     slotinfo->status|=(STATUS_PLAYER_INITED);
     while(slotinfo->status) {

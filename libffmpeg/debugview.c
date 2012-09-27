@@ -48,6 +48,8 @@ int main(int argc, char** argv)
     int line = 0;
     int lastline = 0;
     int i;
+    int long_disp=0;
+    int mess_disp=0;
     double min_mc;
     double max_mc;
     double min_ac;
@@ -61,6 +63,12 @@ int main(int argc, char** argv)
     double min_ra;
     double max_ra;
 
+    for(i=1;i<argc;i++) {
+        if(!strcmp(argv[i],"-l"))
+            long_disp=1;
+        if(!strcmp(argv[i],"-m"))
+            mess_disp=1;
+    }
     if(!(debug=debugmem_open(0))) {
         fprintf(stderr,"Can't open debug shared mem.\n");
         return 1;
@@ -87,34 +95,60 @@ int main(int argc, char** argv)
         for(i=0;i<MAX_DEBUG_SLOT;i++) {
             if(!slotdebug[i].uses)
                 continue;
-            printf("Slot: %3d %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) A-V:%7.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d AB: %12lld  %c[K\n",
-                    slotdebug[i].slotid,
-                    slotdebug[i].master_clock,
-                    slotdebug[i].acpts,
-                    slotdebug[i].vcpts,
-                    slotdebug[i].vreadpts,
-                    slotdebug[i].areadpts,
-                    slotdebug[i].audio_real_diff,
-                    slotdebug[i].ablen,
-                    slotdebug[i].av_diff,
-                    slotdebug[i].audio_diff,
-                    slotdebug[i].framedrop,
-                    slotdebug[i].aqsize,
-                    slotdebug[i].vqsize,
-                    slotdebug[i].sqsize,
-                    slotdebug[i].f1,
-                    slotdebug[i].f2,
-                    slotdebug[i].vqtime,
-                    slotdebug[i].aqtime,
-                    slotdebug[i].video_proc % 1000,
-                    slotdebug[i].audio_proc % 1000,
-                    slotdebug[i].read_proc % 1000,
-                    slotdebug[i].plugin_proc % 1000,
-                    slotdebug[i].silence,
-                    slotdebug[i].display_proc % 1000,
-                    slotdebug[i].abytes,
-                    ESC
-                   );
+            if(long_disp) {
+                printf("Slot: %3d %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) A-V:%7.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d AB: %12lld  %c[K\n",
+                        slotdebug[i].slotid,
+                        slotdebug[i].master_clock,
+                        slotdebug[i].acpts,
+                        slotdebug[i].vcpts,
+                        slotdebug[i].vreadpts,
+                        slotdebug[i].areadpts,
+                        slotdebug[i].audio_real_diff,
+                        slotdebug[i].ablen,
+                        slotdebug[i].av_diff,
+                        slotdebug[i].audio_diff,
+                        slotdebug[i].framedrop,
+                        slotdebug[i].aqsize,
+                        slotdebug[i].vqsize,
+                        slotdebug[i].sqsize,
+                        slotdebug[i].f1,
+                        slotdebug[i].f2,
+                        slotdebug[i].vqtime,
+                        slotdebug[i].aqtime,
+                        slotdebug[i].video_proc % 1000,
+                        slotdebug[i].audio_proc % 1000,
+                        slotdebug[i].read_proc % 1000,
+                        slotdebug[i].plugin_proc % 1000,
+                        slotdebug[i].silence,
+                        slotdebug[i].display_proc % 1000,
+                        slotdebug[i].apicall,
+                        slotdebug[i].abytes,
+                        ESC
+                       );
+            } else {
+                printf("Slot: %3d %7.2f A-V:%7.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d %c[K\n",
+                        slotdebug[i].slotid,
+                        slotdebug[i].master_clock,
+                        slotdebug[i].av_diff,
+                        slotdebug[i].audio_diff,
+                        slotdebug[i].framedrop,
+                        slotdebug[i].aqsize,
+                        slotdebug[i].vqsize,
+                        slotdebug[i].sqsize,
+                        slotdebug[i].f1,
+                        slotdebug[i].f2,
+                        slotdebug[i].vqtime,
+                        slotdebug[i].aqtime,
+                        slotdebug[i].video_proc % 1000,
+                        slotdebug[i].audio_proc % 1000,
+                        slotdebug[i].read_proc % 1000,
+                        slotdebug[i].plugin_proc % 1000,
+                        slotdebug[i].silence,
+                        slotdebug[i].display_proc % 1000,
+                        slotdebug[i].apicall,
+                        ESC
+                       );
+                }
             if(line) {
                 if(slotdebug[i].master_clock<min_mc)
                     min_mc=slotdebug[i].master_clock;
@@ -149,18 +183,27 @@ int main(int argc, char** argv)
                 min_ra=max_ra=slotdebug[i].audio_real_diff;
             }
             line++;
+            if(mess_disp) {
+                printf("\tMsg: '%s' %c[K\n",
+                    slotdebug[i].msg,
+                    ESC
+                    );
+                line++;
+            }
         }
-        line++;
-        printf("Diff:     %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f) %7.2f %7.2f  %c[K\n",
-                max_mc-min_mc,
-                max_ac-min_ac,
-                max_vc-min_vc,
-                max_v-min_v,
-                max_a-min_a,
-                max_ra-min_ra,
-                max_ra,min_ra,
-                ESC
-                );
+        if(long_disp) {
+            line++;
+            printf("Diff:     %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f) %7.2f %7.2f  %c[K\n",
+                    max_mc-min_mc,
+                    max_ac-min_ac,
+                    max_vc-min_vc,
+                    max_v-min_v,
+                    max_a-min_a,
+                    max_ra-min_ra,
+                    max_ra,min_ra,
+                    ESC
+                    );
+        }
         for(i=line;i<lastline;i++) {
             printf("%c[K\n",ESC);
         }
