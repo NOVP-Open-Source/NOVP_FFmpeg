@@ -34,6 +34,9 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 
 #include "DOM/Document.h"
 
+#include "URI.h"
+#include "stdio.h"
+
 void SPlayerPlugin::StaticInitialize()
 {
     // Place one-time initialization stuff here; note that there isn't an absolute guarantee that
@@ -113,6 +116,12 @@ FB::JSAPIPtr SPlayerPlugin::createJSAPI()
         par = getParam(key);
         if(par.is_initialized())
         {
+            if(key == "src")
+            {
+                const FB::URI& uri = FB::URI::fromString(par.get());
+                fprintf(stderr,"host: %s src: %s\n",uri.domain.c_str(),par.get().c_str());
+            }
+
 //            m_player->setParam(key, par.get());
             m_player->SetProperty(key, par);
         }
@@ -123,6 +132,10 @@ FB::JSAPIPtr SPlayerPlugin::createJSAPI()
 
 bool SPlayerPlugin::onMouseDown(FB::MouseDownEvent *evt, FB::PluginWindow*)
 {
+#if 0
+    if(m_player)
+        return m_player->onMouseDown();
+#endif
     return false;
 }
 

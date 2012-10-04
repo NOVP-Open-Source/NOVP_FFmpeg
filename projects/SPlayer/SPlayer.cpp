@@ -543,6 +543,36 @@ std::string SPlayer::GetQTSrc()
 
 void SPlayer::SetQTSrc(const std::string& val)
 {
+
+    if(m_host->getDOMWindow())
+    {
+        std::string locurl = m_host->getDOMWindow()->getLocation();
+        if(val.substr(0,3)=="../" && !locurl.empty())
+        {
+            size_t n = locurl.rfind('/');
+            if(n != std::string::npos)
+            {
+                locurl = locurl.substr(0,n);
+            }
+            n = locurl.rfind('/');
+            if(n != std::string::npos)
+            {
+                locurl = locurl.substr(0,n);
+            }
+            m_qtsrc = locurl+val.substr(2);
+            return;
+        }
+        if(val.substr(0,2)=="./" && !locurl.empty())
+        {
+            size_t n = locurl.rfind('/');
+            if(n != std::string::npos)
+            {
+                locurl = locurl.substr(0,n);
+            }
+            m_qtsrc = locurl+val.substr(1);
+            return;
+        }
+    }
     m_qtsrc = val;
 }
 
@@ -612,3 +642,15 @@ void SPlayer::EventProcess()
     FireEvent("onTestEvent", FB::variant_list_of(m_href));
 }
 
+#if 0
+bool SPlayer::onMouseDown()
+{
+    if(!m_href.empty())
+    {
+        fprintf(stderr,"Navigate: %s\n",m_href.c_str());
+        m_host->Navigate(m_href, "");
+        return true;
+    }
+    return false;
+}
+#endif

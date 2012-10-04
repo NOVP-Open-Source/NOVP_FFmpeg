@@ -119,7 +119,9 @@ public:
     bool GetMute();                                             /// get mute flag
     bool SetResetPropertiesOnReload(const FB::variant&);        /// reset plugin setting when load new movie (bool)
     bool GetResetPropertiesOnReload();                          /// get reset plugin settings flag
-
+#if 0
+    bool onMouseDown();
+#endif
 
 private:
     typedef boost::shared_ptr<MediaPlayer> MediaPlayerPtr;
