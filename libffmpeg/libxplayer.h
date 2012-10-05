@@ -352,6 +352,8 @@ typedef struct {
 } audio_info_t;
 
 double xplayer_clock();
+void threadtime(int slotid, int tid, double proc, double run);
+void plugincall(int slotid, int callid);
 
 /// API
 

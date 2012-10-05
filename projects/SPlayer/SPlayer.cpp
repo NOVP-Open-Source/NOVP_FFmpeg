@@ -148,22 +148,26 @@ SPlayer::~SPlayer()
 
 bool SPlayer::pause()
 {
+    plugincall(slotId, 2);
     return m_player->pause();
 }
 
 void SPlayer::setloglevel(const FB::variant& arg)
 {
+    plugincall(slotId, 44);
     m_loglevel = arg.convert_cast<int>();
     m_player->setloglevel(m_loglevel);
 }
 
 int SPlayer::getloglevel()
 {
+    plugincall(slotId, 44);
     return m_loglevel;
 }
 
 bool SPlayer::open(const std::string& entry)
 {
+    plugincall(slotId, 3);
     if(!entry.length())
         return false;
     m_player->open(entry);
@@ -173,6 +177,7 @@ bool SPlayer::open(const std::string& entry)
 
 bool SPlayer::close()
 {
+    plugincall(slotId, 4);
     m_player->close();
     return true;
 }
@@ -180,22 +185,26 @@ bool SPlayer::close()
 
 bool SPlayer::play(const FB::CatchAll& catchall)
 {
+    plugincall(slotId, 1);
     return m_player->play();
 }
 
 bool SPlayer::stop()
 {
+    plugincall(slotId, 12);
     return m_player->stop();
 }
 
 bool SPlayer::flush()
 {
+    plugincall(slotId, 13);
     return m_player->flush();
 }
 
 
 bool SPlayer::seek(const FB::variant& arg)
 {
+    plugincall(slotId, 5);
     double pos = arg.convert_cast<double>();
     if (pos < 0.0) {
         return false;
@@ -206,6 +215,7 @@ bool SPlayer::seek(const FB::variant& arg)
 
 bool SPlayer::seekpos(const FB::variant& arg)
 {
+    plugincall(slotId, 6);
     double pos = arg.convert_cast<double>();
     if (pos < 0.0) {
         return false;
@@ -216,6 +226,7 @@ bool SPlayer::seekpos(const FB::variant& arg)
 
 bool SPlayer::seekrel(const FB::variant& arg)
 {
+    plugincall(slotId, 7);
     double pos = arg.convert_cast<double>();
     if (pos == 0.0) {
         return false;
@@ -226,6 +237,7 @@ bool SPlayer::seekrel(const FB::variant& arg)
 
 bool SPlayer::audiodisable(const FB::variant& arg)
 {
+    plugincall(slotId, 21);
     bool dis = arg.convert_cast<bool>();
     m_player->audiodisable(dis);
     return true;
@@ -241,34 +253,40 @@ bool SPlayer::rtspmode(const std::string& entry)
 
 bool SPlayer::setOptions(const std::string& optname, const std::string& optvalue)
 {
+    plugincall(slotId, 20);
     return m_player->setOptions(optname, optvalue);
 }
 
 int SPlayer::getvideoformat()
 {
+    plugincall(slotId, 8);
 //    return m_player->getvideoformat();
     return 0;
 }
 
 int SPlayer::getaudioformat()
 {
+    plugincall(slotId, 9);
 //    return m_player->getaudioformat();
     return 0;
 }
 
 double SPlayer::getmovielength()
 {
+    plugincall(slotId, 10);
     return m_player->getmovielength();
 }
 
 char* SPlayer::geturl()
 {
+    plugincall(slotId, 11);
 //    return m_player->geturl();
     return NULL;
 }
 
 char* SPlayer::getstatusline()
 {
+    plugincall(slotId, 22);
     char* l = m_player->getstatusline();
     strncpy(statusline,l,1024);
     free(l);
@@ -277,29 +295,34 @@ char* SPlayer::getstatusline()
 
 bool SPlayer::volume(const FB::variant& vol)
 {
+    plugincall(slotId, 14);
     int v = vol.convert_cast<int>();
     return m_player->volume(v);
 }
 
 double SPlayer::getcurrentpts()
 {
+    plugincall(slotId, 17);
     return m_player->getcurrentpts();
 }
 
 double SPlayer::getrealpts()
 {
+    plugincall(slotId, 18);
 //    return m_player->getrealpts();
     return 0.0;
 }
 
 double SPlayer::getfps()
 {
+    plugincall(slotId, 19);
 //    return m_player->getfps();
     return 0.0;
 }
 
 int SPlayer::getstatus()
 {
+    plugincall(slotId, 16);
     return m_player->getstatus();
 }
 
@@ -324,6 +347,7 @@ void SPlayer::setWindow(FB::PluginWindow* win)
 
 char* SPlayer::GetPluginStatus()
 {
+    plugincall(slotId, 23);
     int st = m_player->getstatus();
     int err = 0;
     if(!(st & STATUS_PLAYER_CONNECT)) {
@@ -348,16 +372,19 @@ char* SPlayer::GetPluginStatus()
 
 bool SPlayer::Play()
 {
+    plugincall(slotId, 24);
     return m_player->play();
 }
 
 bool SPlayer::Stop()
 {
+    plugincall(slotId, 25);
     return m_player->pause();
 }
 
 bool SPlayer::Rewind()
 {
+    plugincall(slotId, 26);
     m_player->pause();
     m_player->seekpos(0.0);
     return false;
@@ -365,6 +392,7 @@ bool SPlayer::Rewind()
 
 bool SPlayer::Step(const FB::variant& arg)
 {
+    plugincall(slotId, 27);
     int timepos = arg.convert_cast<int>();
     double pos = (double)timepos / (double)GetTimeScale();
     m_player->pause();
@@ -374,11 +402,13 @@ bool SPlayer::Step(const FB::variant& arg)
 
 int SPlayer::GetTimeScale()
 {
+    plugincall(slotId, 28);
     return 30;
 }
 
 int SPlayer::GetDuration()
 {
+    plugincall(slotId, 29);
     int ret;
     ret = m_player->getmovielength() * GetTimeScale();
     return ret;
@@ -387,6 +417,7 @@ int SPlayer::GetDuration()
 
 bool SPlayer::SetURL(const std::string& entry)
 {
+    plugincall(slotId, 30);
     if(!entry.length())
         return false;
     m_url = entry;
@@ -398,11 +429,13 @@ bool SPlayer::SetURL(const std::string& entry)
 
 std::string SPlayer::GetURL()
 {
+    plugincall(slotId, 31);
     return m_url;
 }
 
 bool SPlayer::SetTime(const FB::variant& arg)
 {
+    plugincall(slotId, 32);
     int timepos = arg.convert_cast<int>();
     if (timepos < 0) {
         return false;
@@ -414,6 +447,7 @@ bool SPlayer::SetTime(const FB::variant& arg)
 
 int  SPlayer::GetTime()
 {
+    plugincall(slotId, 33);
     int ret;
     ret = m_player->getcurrentpts() * GetTimeScale();
     return ret;
@@ -422,11 +456,13 @@ int  SPlayer::GetTime()
 
 bool SPlayer::SetRate(const FB::variant& arg)
 {
+    plugincall(slotId, 34);
     return false;
 }
 
 float SPlayer::GetRate()
 {
+    plugincall(slotId, 35);
     int st = m_player->getstatus();
     if((st & STATUS_PLAYER_OPENED) && !(st & STATUS_PLAYER_PAUSE))
         return 1.0;
@@ -435,34 +471,40 @@ float SPlayer::GetRate()
 
 void SPlayer::SetVolume(const FB::variant& vol)
 {
+    plugincall(slotId, 37);
     int v = vol.convert_cast<int>();
     m_player->volume(v / 2.55);
 }
 
 int  SPlayer::GetVolume()
 {
+    plugincall(slotId, 15);
     return m_player->getvolume() * 2.55;
 }
 
 bool SPlayer::SetMute(const FB::variant& flag)
 {
+    plugincall(slotId, 40);
     bool f = flag.convert_cast<bool>();
     return m_player->mute(f);
 }
 
 bool SPlayer::GetMute()
 {
+    plugincall(slotId, 41);
     return m_player->getmute();
 }
 
 bool SPlayer::SetResetPropertiesOnReload(const FB::variant& arg)
 {
+    plugincall(slotId, 42);
     m_resetprop = arg.convert_cast<bool>();
     return true;
 }
 
 bool SPlayer::GetResetPropertiesOnReload()
 {
+    plugincall(slotId, 43);
     return m_resetprop;
 }
 
@@ -478,71 +520,85 @@ void SPlayer::SetID(const std::string& val)
 
 int SPlayer::GetWidth()
 {
+    plugincall(slotId, 45);
     return m_width;
 }
 
 void SPlayer::SetWidth(const FB::variant& arg)
 {
+    plugincall(slotId, 45);
     m_width = arg.convert_cast<int>();
 }
 
 int SPlayer::GetHeight()
 {
+    plugincall(slotId, 46);
     return m_height;
 }
 
 void SPlayer::SetHeight(const FB::variant& arg)
 {
+    plugincall(slotId, 46);
     m_height = arg.convert_cast<int>();
 }
 
 std::string SPlayer::GetType()
 {
+    plugincall(slotId, 47);
     return m_type;
 }
 
 void SPlayer::SetType(const std::string& val)
 {
+    plugincall(slotId, 47);
     m_type = val;
 }
 
 std::string SPlayer::GetCodeBase()
 {
+    plugincall(slotId, 48);
     return m_codebase;
 }
 
 void SPlayer::SetCodeBase(const std::string& val)
 {
+    plugincall(slotId, 48);
     m_codebase = val;
 }
 
 std::string SPlayer::GetClassID()
 {
+    plugincall(slotId, 49);
     return m_classid;
 }
 
 void SPlayer::SetClassID(const std::string& val)
 {
+    plugincall(slotId, 49);
     m_classid = val;
 }
 
 std::string SPlayer::GetSrc()
 {
+    plugincall(slotId, 50);
     return m_src;
 }
 
 void SPlayer::SetSrc(const std::string& val)
 {
+    plugincall(slotId, 50);
     m_src = val;
 }
 
 std::string SPlayer::GetQTSrc()
 {
+    plugincall(slotId, 51);
     return m_qtsrc;
 }
 
 void SPlayer::SetQTSrc(const std::string& val)
 {
+    plugincall(slotId, 52);
 
     if(m_host->getDOMWindow())
     {
@@ -578,41 +634,49 @@ void SPlayer::SetQTSrc(const std::string& val)
 
 bool SPlayer::GetEnableJavascript()
 {
+    plugincall(slotId, 52);
     return m_enablejavascript;
 }
 
 void SPlayer::SetEnableJavascript(const FB::variant& arg)
 {
+    plugincall(slotId, 52);
     m_enablejavascript = arg.convert_cast<bool>();
 }
 
 bool SPlayer::GetKioskMode()
 {
+    plugincall(slotId, 53);
     return m_kioskmode;
 }
 
 void SPlayer::SetKioskMode(const FB::variant& arg)
 {
+    plugincall(slotId, 53);
     m_kioskmode = arg.convert_cast<bool>();
 }
 
 bool SPlayer::GetController()
 {
+    plugincall(slotId, 54);
     return m_controller;
 }
 
 void SPlayer::SetController(const FB::variant& arg)
 {
+    plugincall(slotId, 54);
     m_controller = arg.convert_cast<bool>();
 }
 
 bool SPlayer::GetAutoPlay()
 {
+    plugincall(slotId, 37);
     return m_autoplay;
 }
 
 void SPlayer::SetAutoPlay(const FB::variant& arg)
 {
+    plugincall(slotId, 36);
     m_autoplay = arg.convert_cast<bool>();
 }
 
@@ -628,11 +692,13 @@ void SPlayer::SetScale(const std::string& val)
 
 std::string SPlayer::GetHRef()
 {
+    plugincall(slotId, 55);
     return m_href;
 }
 
 void SPlayer::SetHRef(const std::string& val)
 {
+    plugincall(slotId, 55);
     m_href = val;
 }
 

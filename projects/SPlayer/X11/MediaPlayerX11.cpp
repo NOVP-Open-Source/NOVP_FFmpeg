@@ -380,64 +380,6 @@ char* MediaPlayer::getstatusline(void)
     return xplayer_API_getstatusline(slotId);
 }
 
-
-#if 0
-bool MediaPlayer::setsync(const double sync)
-{
-
-    if(m_context && m_context->video_priv) {
-//        m_context->video_priv->sync=sync;
-        m_context->video_priv->startpts=sync;
-        return true;
-    }
-    return false;
-}
-
-double MediaPlayer::getsync(const double sync)
-{
-
-    if(m_context && m_context->video_priv) {
-        return m_context->video_priv->startpts;
-    }
-    return 0.0;
-}
-
-double MediaPlayer::getvpts(void)
-{
-
-    if(m_context && m_context->video_priv) {
-        return m_context->video_priv->vpts;
-    }
-    return 0.0;
-}
-
-double MediaPlayer::getdpts(void)
-{
-
-    if(m_context && m_context->video_priv) {
-        return m_context->video_priv->dpts;
-    }
-    return 0.0;
-}
-
-double MediaPlayer::getpts(void)
-{
-
-    if(m_context && m_context->video_priv) {
-        return m_context->video_priv->pts;
-    }
-    return 0.0;
-}
-
-int MediaPlayer::status(void)
-{
-    if(m_context && m_context->video_priv) {
-        return m_context->video_priv->status;
-    }
-    return 0;
-}
-#endif
-
 bool MediaPlayer::stop()
 {
 /*
@@ -525,6 +467,10 @@ extern "C" {
         int h=0;
         int winw = 640;
         int winh = 480;
+
+        double stime=0.0;
+        double etime=0.0;
+        double ltime=0.0;
 
         Display *g_pDisplay = NULL;
         XSetWindowAttributes windowAttributes;
@@ -784,7 +730,13 @@ fprintf(stderr,"Load texture. slot: %d img: %p\n",priv->slot,img);
                 }
             }
             setst(priv->slot, 13);
+            ltime=etime;
+            etime=xplayer_clock();
+            if(etime>0.0 && stime>0.0) {
+                threadtime(priv->slot, DISPLAY_THREAD_ID, etime-stime, etime-ltime);
+            }
             usleep(40000);
+            stime=xplayer_clock();
             if((priv->run & 2) && !(xplayer_API_getstatus(priv->slot)&STATUS_PLAYER_OPENED))
             {
                 break;

@@ -10,6 +10,20 @@ extern "C" {
 
 #define DEFAULT_DEBUG_ID        4000
 #define MAX_DEBUG_SLOT          256
+#define MAX_DEBUG_APINUM        64
+#define MAX_DEBUG_PLUGINNUM     64
+#define MAX_DEBUG_THREADS       8
+
+#define PROCESS_THREAD_ID       0
+#define REFRESH_THREAD_ID       1
+#define READ_THREAD_ID          2
+#define VIDEO_THREAD_ID         3
+#define DISPLAY_THREAD_ID       4
+
+typedef struct {
+    double      proc;
+    double      run;
+} thread_times_t;
 
 typedef struct {
     int audio_proc;
@@ -20,6 +34,7 @@ typedef struct {
     unsigned int vdaframes_pop;
     unsigned int vdaframes_release;
     unsigned long int audio_buffer;
+    thread_times_t thread_time;
 
     char* slot[];
 } maindebug_t;
@@ -53,6 +68,9 @@ typedef struct {
     unsigned int ablen;
     unsigned int apicall;
     char msg[512];
+    unsigned int proccount[MAX_DEBUG_APINUM];
+    unsigned int plugincount[MAX_DEBUG_PLUGINNUM];
+    thread_times_t thread_time[MAX_DEBUG_THREADS];
 } slotdebug_t;
 
 void*           debugmem_open(int id);
