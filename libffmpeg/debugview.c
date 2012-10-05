@@ -628,6 +628,14 @@ int main(int argc, char** argv)
                     break;
                 if(strchr(termbuf,'n'))
                     debugview->page++;
+                if(strchr(termbuf,'r')) {
+                    for(i=0;i<MAX_DEBUG_SLOT;i++) {
+                        if(!slotdebug[i].uses)
+                            continue;
+                        memset(slotdebug[i].proccount,0,sizeof(unsigned int)*MAX_DEBUG_APINUM);
+                        memset(slotdebug[i].plugincount,0,sizeof(unsigned int)*MAX_DEBUG_APINUM);
+                    }
+                }
             }
         }
     }
