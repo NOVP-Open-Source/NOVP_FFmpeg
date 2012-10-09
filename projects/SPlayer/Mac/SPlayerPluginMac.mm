@@ -55,6 +55,9 @@
 - (void)drawInCGLContext:(CGLContextObj)ctx pixelFormat:(CGLPixelFormatObj)pf forLayerTime:(CFTimeInterval)t displayTime:(const CVTimeStamp *)ts {
     GLsizei width = CGRectGetWidth([self bounds]), height = CGRectGetHeight([self bounds]);
     
+    static double ltime = 0;
+    double stime = xplayer_clock();
+
     int drawframe = 0;
     
     if(width!=frame_w || height!=frame_h || !g_textureID)
@@ -227,6 +230,13 @@
             break;
     }
    
+    double  etime = xplayer_clock();
+    if(etime > 0.0 && ltime > 0.0)
+    {
+        threadtime(slotId, 4, etime - stime, etime - ltime); //#define DISPLAY_THREAD_ID 4
+    }
+    ltime = etime;
+    
     [super drawInCGLContext:ctx pixelFormat:pf forLayerTime:t displayTime:ts];
 }
 @end

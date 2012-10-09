@@ -67,8 +67,8 @@ SPlayerPlugin::SPlayerPlugin(int pluginIdentifier, int slotIdentifier)
     slotId = slotIdentifier;
     long timeout = 1000;
     bool recursive = true;
-    m_timer = FB::Timer::getTimer(timeout, recursive, boost::bind(&SPlayerPlugin::timerCallback, this));
-    m_timer->start();
+//    m_timer = FB::Timer::getTimer(timeout, recursive, boost::bind(&SPlayerPlugin::timerCallback, this));
+//    m_timer->start();
     FBLOG_INFO("", "SPlayerPlugin( pluginIdentifier: " << playerId << ", slotIdentifier: " << slotId << " )");
 }
 
