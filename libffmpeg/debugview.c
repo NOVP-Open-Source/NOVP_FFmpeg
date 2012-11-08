@@ -209,7 +209,7 @@ static void pad(int n) {
         printf(" ");
 }
 
-static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview)
+static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double playtime)
 {
     if(!slotdebug) {
         if(debugview->long_disp) {
@@ -228,7 +228,7 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview)
         return;
     }
     if(debugview->long_disp) {
-        printf("Slot: %3d %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) A-V:%7.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d AB: %12lld  %c[K\n",
+        printf("Slot: %3d %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) A-V:%7.3f PT: %8.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d AB: %12lld  %c[K\n",
                 slotdebug->slotid,
                 slotdebug->master_clock,
                 slotdebug->acpts,
@@ -238,6 +238,7 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview)
                 slotdebug->audio_real_diff,
                 slotdebug->ablen,
                 slotdebug->av_diff,
+                slotdebug->playtime-playtime,
                 slotdebug->audio_diff,
                 slotdebug->framedrop,
                 slotdebug->aqsize,
@@ -258,10 +259,11 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview)
                 ESC
                );
     } else {
-        printf("Slot: %3d %7.2f A-V:%7.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d %c[K\n",
+        printf("Slot: %3d %7.2f A-V:%7.3f PT: %8.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d %c[K\n",
                 slotdebug->slotid,
                 slotdebug->master_clock,
                 slotdebug->av_diff,
+                slotdebug->playtime-playtime,
                 slotdebug->audio_diff,
                 slotdebug->framedrop,
                 slotdebug->aqsize,
@@ -533,6 +535,7 @@ int main(int argc, char** argv)
     fd_set fds;
     struct timeval tv;
     char termbuf[64];
+    double playtime;
     int r = 0;
     int lastline = 0;
     int i;
@@ -569,9 +572,20 @@ int main(int argc, char** argv)
         printf("%c[1;1H",ESC);
         fflush(stdout);
         double load = 0.0;
+        playtime=0.0;
+        for(i=0;i<MAX_DEBUG_SLOT;i++) {
+            if(!slotdebug[i].uses)
+                continue;
+            if(slotdebug[i].playtime==0.0)
+                continue;
+            if(playtime==0.0)
+                playtime=slotdebug[i].playtime;
+            if(playtime>slotdebug[i].playtime)
+                playtime=slotdebug[i].playtime;
+        }
         if(maindebug->thread_time.proc>0.0 && maindebug->thread_time.run>0.0)
             load=maindebug->thread_time.proc/maindebug->thread_time.run;
-        printf("Debug view v0.1 Audio: %3d Slot: %3d pass: %d proc: %5.1f run: %5.1f load: %4.1f%% master buffer: %12ld mpi: %d %d => %d vda frames: %d %d => %d %c[K\n\n",
+            printf("Debug view v0.1 Audio: %3d Slot: %3d pass: %d proc: %5.1f run: %5.1f load: %4.1f%% master buffer: %12ld mpi: %d %d => %d vda frames: %d %d => %d %c[K\n\n",
                 maindebug->audio_proc % 1000,maindebug->audio_slot,maindebug->pass,
                 maindebug->thread_time.proc,maindebug->thread_time.run,load*100.0,
                 maindebug->audio_buffer,
@@ -595,7 +609,7 @@ int main(int argc, char** argv)
             } else if(debugview->thread_disp) {
                 thread_disp(&slotdebug[i], debugview);
             } else {
-                status_disp(&slotdebug[i], debugview);
+                status_disp(&slotdebug[i], debugview, playtime);
             }
         }
 
@@ -606,7 +620,7 @@ int main(int argc, char** argv)
         } else if(debugview->thread_disp) {
             thread_disp(NULL, debugview);
         } else {
-            status_disp(NULL, debugview);
+            status_disp(NULL, debugview, playtime);
         }
 
 

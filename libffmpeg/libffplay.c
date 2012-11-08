@@ -246,6 +246,29 @@ void threadtime(int slotid, int tid, double proc, double run) {
 #endif
 }
 
+int envloglevel(int loglevel)
+{
+    char * env;
+    if((env=getenv("SPLAYER_LOGLEVEL"))) {
+        if(strlen(env)) {
+            return atoi(env);
+        }
+    }
+    return loglevel;
+}
+
+int envdebugflag(int debugflag)
+{
+    char * env;
+    if((env=getenv("SPLAYER_DEBUGFLAG"))) {
+        if(strlen(env)) {
+            return atoi(env);
+        }
+    }
+    return debugflag;
+}
+
+
 static void *player_process(void *data);
 static void *audio_process(void *data);
 
@@ -348,8 +371,8 @@ static slotinfo_t* init_slotinfo(int slot) {
     slotinfo->wanted_stream[AVMEDIA_TYPE_SUBTITLE]=-1;
     slotinfo->buffer_time=DEFAULT_BUFFER_TIME;
     memset(slotinfo->statusline,0,STATUSLINE_SIZE);
-    slotinfo->loglevel=0;
-    slotinfo->debugflag=0;
+    slotinfo->loglevel=envloglevel(0);
+    slotinfo->debugflag=envdebugflag(0);
 #ifdef USE_AUDIO_DECODE_NEW
 //        slotinfo->buffer_time=0;
 #endif
@@ -740,7 +763,7 @@ static void add_freeable_vdaframe(slotinfo_t* slotinfo, void* vdaframe, int nolo
 void xplayer_API_init(int log_level, const char* logfile) {
 
     xplayer_API_setlogfile(logfile);
-    loglevel = log_level;
+    loglevel = envloglevel(loglevel);
     master_init(3);
 }
 
@@ -1020,14 +1043,14 @@ void xplayer_API_slotfree(int slot) {
 void xplayer_API_setloglevel(int slot, int loglevel) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
-    slotinfo->loglevel = loglevel;
+    slotinfo->loglevel = envloglevel(loglevel);
     updateloglevel(0);
 }
 
 void xplayer_API_setdebug(int slot, int flag) {
     slotinfo_t* slotinfo = get_slot_info(slot,1);
 
-    slotinfo->debugflag = flag;
+    slotinfo->debugflag = envdebugflag(flag);
 }
 
 video_info_t* xplayer_API_getvideoformat(int slot) {
@@ -1213,6 +1236,14 @@ int xplayer_API_play(int slot) {
     apicall(slot, 10);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->pauseafterload=0;
+#ifdef USE_DEBUG_LIB
+    if(dmem && slot<MAX_DEBUG_SLOT) {
+        slotdebug_t* slotdebugs = debugmem_getslot(dmem);
+        if(slotdebugs) {
+            slotdebugs[slot].playtime=xplayer_clock();
+        }
+    }
+#endif
     if(slotinfo->url) {
         if(safestrcmp(slotinfo->currenturl,slotinfo->url)) {
             slotinfo->pauseflag=0;
@@ -2181,6 +2212,8 @@ typedef struct VideoState {
     double start_pts;
     double max_diff;
 
+    pthread_mutex_t event_mutex;
+
 #if CONFIG_AVFILTER
     AVFilterContext *out_video_filter;          ///<the last filter in the video chain
 #endif
@@ -2885,6 +2918,7 @@ static void stream_close(VideoState *is)
     wait_for_free_image(is->slotinfo);
     is->slotinfo->status&=~(STATUS_WAIT_FOR_FREE_IMAGE);
     is->slotinfo->status&=~(STATUS_PLAYER_OPENED);
+    pthread_mutex_destroy(&is->event_mutex);
     pthread_mutex_destroy(&is->pictq_mutex);
     pthread_cond_destroy(&is->pictq_cond);
     pthread_mutex_destroy(&is->subpq_mutex);
@@ -3029,6 +3063,7 @@ static double get_master_clock(VideoState *is)
 /* seek in the stream */
 static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_bytes)
 {
+    pthread_mutex_lock(&is->event_mutex);
     if (!is->seek_req) {
         is->seek_pos = pos;
         is->seek_rel = rel;
@@ -3037,11 +3072,13 @@ static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_by
             is->seek_flags |= AVSEEK_FLAG_BYTE;
         is->seek_req = 1;
     }
+    pthread_mutex_unlock(&is->event_mutex);
 }
 
 /* pause or resume the video */
 static void stream_toggle_pause(VideoState *is)
 {
+    pthread_mutex_lock(&is->event_mutex);
     if (is->paused) {
         is->frame_timer += av_gettime() / 1000000.0 + is->video_current_pts_drift - is->video_current_pts;
         if(is->read_pause_return != AVERROR(ENOSYS)){
@@ -3055,6 +3092,7 @@ static void stream_toggle_pause(VideoState *is)
     } else {
         is->slotinfo->status&=~(STATUS_PLAYER_PAUSE);
     }
+    pthread_mutex_unlock(&is->event_mutex);
 }
 
 static double compute_target_delay(double delay, VideoState *is)
@@ -4220,6 +4258,9 @@ static void* video_thread(void *arg)
             }
         }
         if(is->slotinfo->pauseafterload && !strcmp(is->ic->iformat->name, "rtsp") && is->ic->duration==AV_NOPTS_VALUE) {
+            if(!(is->slotinfo->status & STATUS_PLAYER_OPENED)) {
+                is->slotinfo->status|=(STATUS_PLAYER_OPENED);
+            }
             is->slotinfo->pauseafterload=0;
         }
         if(is->slotinfo->pauseafterload && pts_int!=AV_NOPTS_VALUE) {
@@ -4237,6 +4278,9 @@ static void* video_thread(void *arg)
             is->slotinfo->pauseafterload=0;
             is->paused=0;
             pthread_mutex_unlock(&is->slotinfo->mutex);
+            if(!(is->slotinfo->status & STATUS_PLAYER_OPENED)) {
+                is->slotinfo->status|=(STATUS_PLAYER_OPENED);
+            }
             stream_toggle_pause(is);
         }
         if(!is->flushflag && !strcmp(is->ic->iformat->name, "rtsp") && is->ic->duration==AV_NOPTS_VALUE) {
@@ -5898,12 +5942,17 @@ static void* read_thread(void *arg)
         goto fail;
     }
 
-    is->slotinfo->status|=(STATUS_PLAYER_OPENED);
+    if(!is->slotinfo->pauseafterload) {
+        is->slotinfo->status|=(STATUS_PLAYER_OPENED);
+    }
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass10 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
     printdebugbuffer(is->slotinfo->slotid, "Open streams OK. (%s)", is->filename);
     for(;;) {
+        if(!is->slotinfo->pauseafterload && !(is->slotinfo->status &STATUS_PLAYER_OPENED)) {
+            is->slotinfo->status|=(STATUS_PLAYER_OPENED);
+        }
         ltime=etime;
         etime=xplayer_clock();
 #ifdef USE_DEBUG_LIB
@@ -5924,18 +5973,22 @@ static void* read_thread(void *arg)
 #endif
         if (is->abort_request)
             break;
+        pthread_mutex_lock(&is->event_mutex);
         if (is->paused != is->last_paused) {
             is->last_paused = is->paused;
-            if (is->paused)
+            pthread_mutex_unlock(&is->event_mutex);
+            if (is->last_paused)
                 is->read_pause_return= av_read_pause(ic);
             else
                 av_read_play(ic);
-            if(!is->paused) {
+            if(!is->last_paused) {
                 clearpause = 5;
             }
+        } else {
+            pthread_mutex_unlock(&is->event_mutex);
         }
 #if CONFIG_RTSP_DEMUXER || CONFIG_MMSH_PROTOCOL
-        if ((is->paused) &&
+        if ((is->last_paused) && (!is->seek_req) &&
                 (!strcmp(ic->iformat->name, "rtsp") ||
                  (ic->pb && !strncmp(is->slotinfo->url, "mmsh:", 5)))) {
             /* wait 10 ms to avoid trying to get another packet */
@@ -5950,6 +6003,7 @@ static void* read_thread(void *arg)
             continue;
         }
 #endif
+        pthread_mutex_lock(&is->event_mutex);
         if (is->seek_req) {
             is->audio_seek_flag=1;
             int64_t seek_target= is->seek_pos;
@@ -5964,6 +6018,7 @@ static void* read_thread(void *arg)
                 is->read_enable=-1;
             is->valid_delay=INVALID_FRAME;
             is->seek_pts = is->seek_pos / AV_TIME_BASE;
+            pthread_mutex_unlock(&is->event_mutex);
             if((is->slotinfo->debugflag & DEBUGFLAG_DELAY)) {
                 av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_thread(): clear valid\n");
             }
@@ -5993,8 +6048,14 @@ static void* read_thread(void *arg)
                     is->read_enable=0;
                 }
             }
+            pthread_mutex_lock(&is->event_mutex);
             is->seek_req = 0;
+            pthread_mutex_unlock(&is->event_mutex);
             eof= 0;
+            if(is->last_paused)
+                continue;
+        } else {
+            pthread_mutex_unlock(&is->event_mutex);
         }
 #ifdef USE_AUDIO_DECODE_NEW
             int aqsize = is->audio_decode_buffer_len;
@@ -6216,6 +6277,7 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
 
 //    is->sws_opts = sws_getContext(16, 16, 0, 16, 16, 0, SWS_BICUBIC, NULL, NULL, NULL);
 
+    pthread_mutex_init(&is->event_mutex, NULL);
     /* start video display */
     pthread_mutex_init(&is->pictq_mutex, NULL);
     pthread_cond_init(&is->pictq_cond, NULL);
@@ -6556,7 +6618,6 @@ static void event_loop(slotinfo_t* slotinfo)
 
             is->audio_clock = 0.0;
             is->audio_clock_diff = 0.0;
-
 #ifndef USES_PAUSESEEK
             if (is->paused) {
                 is->pause_seek = 1;
@@ -6633,6 +6694,7 @@ static void *player_process(void *data)
                 slotdebugs[slotinfo->slotid].f2=0;
                 slotdebugs[slotinfo->slotid].vqtime=0.0;
                 slotdebugs[slotinfo->slotid].aqtime=0.0;
+                slotdebugs[slotinfo->slotid].playtime=0;
                 slotdebugs[slotinfo->slotid].uses=1;
             }
         }

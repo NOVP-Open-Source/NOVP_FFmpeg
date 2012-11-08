@@ -68,6 +68,7 @@ typedef struct {
     unsigned int ablen;
     unsigned int apicall;
     char msg[512];
+    double playtime;
     unsigned int proccount[MAX_DEBUG_APINUM];
     unsigned int plugincount[MAX_DEBUG_PLUGINNUM];
     thread_times_t thread_time[MAX_DEBUG_THREADS];
