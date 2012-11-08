@@ -102,13 +102,13 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
     registerMethod  ("SetResetPropertiesOnReload", make_method  (this, &SPlayer::SetResetPropertiesOnReload));
     registerMethod  ("GetResetPropertiesOnReload", make_method  (this, &SPlayer::GetResetPropertiesOnReload));
 
-    registerEvent   ("onqt_progress");
-    registerEvent   ("onTestEvent");
+//    registerEvent   ("onqt_progress");
+//    registerEvent   ("onTestEvent");
 
 /// ------------------------------------------------------
 
-    registerEvent("onplaylistChanged");
-    registerEvent("oncurrentItemChanged");
+//    registerEvent("onplaylistChanged");
+//    registerEvent("oncurrentItemChanged");
 
     registerProperty("loglevel",                make_property(this, &SPlayer::getloglevel, &SPlayer::setloglevel));
 
@@ -118,7 +118,7 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
     registerProperty("type",                    make_property(this, &SPlayer::GetType, &SPlayer::SetType));
     registerProperty("codebase",                make_property(this, &SPlayer::GetCodeBase, &SPlayer::SetCodeBase));
     registerProperty("classid",                 make_property(this, &SPlayer::GetClassID, &SPlayer::SetClassID));
-    registerProperty("src",                     make_property(this, &SPlayer::GetSrc, &SPlayer::SetSrc));
+//    registerProperty("src",                     make_property(this, &SPlayer::GetSrc, &SPlayer::SetSrc));
     registerProperty("qtsrc",                   make_property(this, &SPlayer::GetQTSrc, &SPlayer::SetQTSrc));
     registerProperty("enablejavascript",        make_property(this, &SPlayer::GetEnableJavascript, &SPlayer::SetEnableJavascript));
     registerProperty("kioskmode",               make_property(this, &SPlayer::GetKioskMode, &SPlayer::SetKioskMode));
