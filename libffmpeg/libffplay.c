@@ -21,16 +21,14 @@
 
 #warning FIXME!!!
 #define CONFIG_RTSP_DEMUXER 1
-//#include "ffmpeg_config.h"
-#define USE_AUDIO_DECODE_NEW
 #define THREAD_DEBUG 1
 #define DEBUG_DIVIMGSIZE 1
 #define NOWAIT_ENDOF_SLOTPROCESS 1
-//#define DEBUG_DONE 1
 //#define DEBUG_AUDIOPROC 1
 #define USE_LOCKIMAGE 1
 
 #define DEBUG_FLAG_LOG_LEVEL    32
+#define GLOBAL_PAUSE_LIMIT      0.4
 
 #include "config.h"
 #include <inttypes.h>
@@ -91,6 +89,10 @@ static unsigned int mpi_free = 0;
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef USE_WAV_DUMP
+#include "wav.h"
+#endif
+
 int loglevel = 0;
 char* logfname = NULL;
 FILE* logfh = NULL;
@@ -113,16 +115,6 @@ void* dmem = NULL;
 
 const uint8_t extra_data[] = {
 	0x01, 0x42 ,0x00 ,0x29 ,0xff ,0xe1 ,0x00 ,0x14 ,0x67 ,0x42 ,0x00 ,0x29 ,0xe2 ,0x90 ,0x0f ,0x00 ,0x44 ,0xfc ,0xb8 ,0x0b ,0x70 ,0x10 ,0x10 ,0x1a ,0x41 ,0xe2 ,0x44 ,0x54 ,0x01 ,0x00 ,0x04 ,0x68 ,0xce ,0x3c ,0x80};
-
-/*
-const uint8_t extra_data[] = {
-	0x01, 0x4d, 0x40, 0x29, 0x03, 0x01, 0x00, 0x1a, 0x67, 0x4d,
-	0x40, 0x29, 0x9a, 0x72, 0x80, 0xf0, 0x04, 0x2d, 0x80, 0x88,
-	0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x03, 0x01, 0x94,
-	0x78, 0xc1, 0x88, 0xb0, 0x01, 0x00, 0x04, 0x68, 0xee, 0xbc,
-	0x80
-};
-*/
 
 static void sanitize(uint8_t *line){
     while(*line){
@@ -268,9 +260,21 @@ int envdebugflag(int debugflag)
     return debugflag;
 }
 
+const char* envtransport(const char* mode)
+{
+    char * env;
+    if((env=getenv("SPLAYER_TRANSPORT"))) {
+        if(strlen(env)) {
+            return env;
+        }
+    }
+    return mode;
+}
+
 
 static void *player_process(void *data);
 static void *audio_process(void *data);
+static void global_toggle_pause(slotinfo_t* slotinfo);
 
 static int lockmgr(void **mtx, enum AVLockOp op)
 {
@@ -311,6 +315,7 @@ static void master_init(int callerid) {
     pthread_mutex_init(&xplayer_global_mutex, NULL);
     pthread_mutex_init(&xplayer_global_status->mutex, NULL);
     pthread_mutex_init(&xplayer_global_status->audiomutex, NULL);
+    pthread_mutex_init(&xplayer_global_status->pausemutex, NULL);
     xplayer_global_status->audio=af_empty(AUDIO_RATE, AUDIO_CHANNELS, AUDIO_FORMAT, 0, 0);
     xplayer_global_status->audiopreload=AUDIO_PRELOAD;
     xplayer_global_status->audioprefill=AUDIO_PREFILL;
@@ -373,9 +378,6 @@ static slotinfo_t* init_slotinfo(int slot) {
     memset(slotinfo->statusline,0,STATUSLINE_SIZE);
     slotinfo->loglevel=envloglevel(0);
     slotinfo->debugflag=envdebugflag(0);
-#ifdef USE_AUDIO_DECODE_NEW
-//        slotinfo->buffer_time=0;
-#endif
     init_options(slotinfo);
     if(slot>=0 && slot<SLOT_MAX_CACHE) {
         xplayer_global_status->slotinfo_chache[slot]=slotinfo;
@@ -486,11 +488,7 @@ static void audio_append(af_data_t* dest, af_data_t* src) {
     dest->len=oldlen+srclen;
 }
 
-#ifdef USE_AUDIO_DECODE_NEW
 static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len);
-#else
-static void read_audio_callback(void *opaque, uint8_t *stream, int len, double timelen);
-#endif
 static void free_freeable_slot();
 
 void audiodebugpass(int pass) {
@@ -526,6 +524,10 @@ void audiodebugslot(int slotid) {
 #endif
 }
 
+int globalpause(slotinfo_t* slotinfo) {
+    return xplayer_global_status->paused;
+}
+
 static void *audio_process(void *data) {
     slotinfo_t* slotinfo;
     af_data_t* af_data;
@@ -539,6 +541,11 @@ static void *audio_process(void *data) {
     int ml,alen;
     int iterbytes;
     int len;
+    int paused;
+#ifdef USE_WAV_DUMP
+    unsigned int wavsize = 0;
+    FILE* fh = NULL;
+#endif
 
     double stime = 0.0;
     double etime = 0.0;
@@ -548,6 +555,14 @@ static void *audio_process(void *data) {
     systime=xplayer_clock();
     alen=xplayer_global_status->audio->nch*format_2_bps(xplayer_global_status->audio->format)*xplayer_global_status->audio->rate;
     iterbytes=af_time2len(xplayer_global_status->audio,xplayer_global_status->itertime);
+
+#ifdef USE_WAV_DUMP
+    fh = fopen("/tmp/audiodump.wav","w+");
+    if(fh) {
+        write_wav_header(fh, xplayer_global_status->audio->rate, xplayer_global_status->audio->nch, 16, 0);
+    }
+#endif
+
     while (xplayer_global_status->run) {
 #ifdef USE_DEBUG_LIB
         if(dmem) {
@@ -585,41 +600,28 @@ static void *audio_process(void *data) {
                 pthread_mutex_lock(&slotinfo->audiomutex);
                 if(!slotinfo->audiolock)
                 {
-#if 1
                     len=ml;
                     if(slotinfo->streampriv)
                     {
                         adata=af_emptyfromdata(xplayer_global_status->audio, ml);
                         audiodebugpass(3);
-#ifdef USE_AUDIO_DECODE_NEW
                         ardata=read_audio_data(slotinfo->streampriv, adata, len);
                         audiodebugpass(4);
                         af_data=af_data_mixer(af_data, 0, len, ardata);
                         af_data_free(adata);
-#else
-                        read_audio_callback(slotinfo->streampriv, adata->audio, len, 0.0);
-                        audiodebugpass(4);
-                        af_data=af_data_mixer(af_data, 0, len, adata);
-                        af_data_free(adata);
-#endif
                     }
-#else
-                    if(slotinfo->audio) {
-                        if(slotinfo->audio->len<len) {
-                            len=slotinfo->audio->len;
-                        }
-                        if(len) {
-                            af_data=af_data_mixer(af_data, 0, len, slotinfo->audio);
-                            af_drop_data(slotinfo->audio,len);
-                        }
-                    }
-#endif
                 }
                 audiodebugpass(5);
                 pthread_mutex_unlock(&slotinfo->audiomutex);
                 audiodebugpass(6);
                 slotinfo=(slotinfo_t*)slotinfo->next;
             }
+#ifdef USE_WAV_DUMP
+            if(fh) {
+                fwrite(af_data->audio,1,af_data->len,fh);
+                wavsize+=af_data->len;
+            }
+#endif
             audio_append(xplayer_global_status->audio, af_data);
             af_data_free(af_data);
             pthread_mutex_unlock(&xplayer_global_status->audiomutex);
@@ -631,7 +633,37 @@ static void *audio_process(void *data) {
 #ifdef NOWAIT_ENDOF_SLOTPROCESS
             free_freeable_slot();
 #endif
-
+            slotinfo=xplayer_global_status->slotinfo;
+            paused=0;
+            while(slotinfo) {
+                if(slotinfo->pausereq)
+                    paused=1;
+#ifdef USE_DEBUG_LIB
+                if(dmem && slotinfo->slotid<MAX_DEBUG_SLOT) {
+                    slotdebug_t* slotdebugs = debugmem_getslot(dmem);
+                    if(slotdebugs) {
+                        slotdebugs[slotinfo->slotid].pausereq=slotinfo->pausereq;
+                    }
+                }
+#endif
+                slotinfo=(slotinfo_t*)slotinfo->next;
+            }
+            if(xplayer_global_status->paused!=paused) {
+                xplayer_global_status->paused=paused;
+                slotinfo=xplayer_global_status->slotinfo;
+                while(slotinfo) {
+                    global_toggle_pause(slotinfo);
+                    slotinfo=(slotinfo_t*)slotinfo->next;
+                }
+            }
+#ifdef USE_DEBUG_LIB
+            if(dmem) {
+                maindebug_t* maindebug = debugmem_getmain(dmem);
+                if(maindebug) {
+                        maindebug->paused=paused;
+                }
+            }
+#endif
             systime=systimenext;
         } else {
             ml=(xplayer_global_status->itertime-ptimes+xplayer_clock())*1000000.0;
@@ -657,6 +689,12 @@ static void *audio_process(void *data) {
             break;
         }
     }
+#ifdef USE_WAV_DUMP
+    if(fh) {
+        update_wav_header(fh, wavsize);
+        fclose(fh);
+    }
+#endif
     return NULL;
 }
 
@@ -830,6 +868,7 @@ void xplayer_API_done() {
         av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Done global thread...\n");
 #endif
         xplayer_global_status->audio=af_data_free(xplayer_global_status->audio);
+        pthread_mutex_destroy(&xplayer_global_status->pausemutex);
         pthread_mutex_destroy(&xplayer_global_status->audiomutex);
         free(xplayer_global_status);
         xplayer_global_status=NULL;
@@ -1144,9 +1183,7 @@ int xplayer_API_setbuffertime(int slot, double sec) {
 
     apicall(slot, 6);
     pthread_mutex_lock(&slotinfo->mutex);
-#ifndef USE_AUDIO_DECODE_NEW
     slotinfo->buffer_time=sec;
-#endif
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
     return 0;
@@ -1160,7 +1197,7 @@ int xplayer_API_loadurl(int slot, char* url) {
         return -1;
     }
     if(!slotinfo->set_rtsp_transport) {
-        xplayer_API_setoptions(slot, "rtsp_transport", "http");
+        xplayer_API_setoptions(slot, "rtsp_transport", envtransport("http"));
         slotinfo->set_rtsp_transport=0;
     }
     apicall(slot, 7);
@@ -1985,7 +2022,14 @@ int xplayer_API_setoptions(int slot, const char *opt, const char *arg)
     apicall(slot, 41);
     pthread_mutex_lock(&slotinfo->mutex);
     parse_option(slotinfo, opt, "");
-    ret=parse_option(slotinfo, opt, arg);
+    if(!strcmp(opt,"rtsp_transport"))
+    {
+        ret=parse_option(slotinfo, opt, envtransport(arg));
+    }
+    else
+    {
+        ret=parse_option(slotinfo, opt, arg);
+    }
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
     return ret;
@@ -2159,7 +2203,8 @@ typedef struct VideoState {
     int64_t last_audio_callback_time;
     double first_pts;
     int64_t first_time;
-    double audio_clock_diff;
+    long int audio_clock_diff_len;
+    int audio_diff;
     int audio_buf_len;
     int audio_seek_flag;
 
@@ -2238,6 +2283,8 @@ typedef struct VideoState {
     int vcnt;
 
     double videowait;
+
+    unsigned int audio_drop;
 } VideoState;
 
 #if CONFIG_AVFILTER
@@ -2350,11 +2397,7 @@ static double queue_time(VideoState *is, PacketQueue *q, int debug)
     {
         first=queue_time(is,&is->videoq, debug);
         if(is->audio_st) {
-#ifdef USE_AUDIO_DECODE_NEW
             last=audio_queue_time(is);
-#else
-            last=queue_time(is,&is->audioq, debug);
-#endif
         }
         if(first==-1.0 && last==-1.0)
             return -1.0;
@@ -2364,12 +2407,10 @@ static double queue_time(VideoState *is, PacketQueue *q, int debug)
             return first;
         return last;
     }
-#ifdef USE_AUDIO_DECODE_NEW
     if(q==&is->audioq)
     {
         return audio_queue_time(is);
     }
-#endif
     AVPacketList *pl;
     pl = q->first_pkt;
     while(pl) {
@@ -2388,15 +2429,6 @@ static double queue_time(VideoState *is, PacketQueue *q, int debug)
     while(pl) {
         if(pl->pkt.pts!=AV_NOPTS_VALUE) {
             last = av_q2d(is->video_st->time_base) * pl->pkt.pts;
-/*
-if(debug)
-{
-if(q==&is->videoq)
-av_log(NULL, AV_LOG_DEBUG,"[debug] queue_time(): video queue: %12.6f %12.6f diff: %12.6f n: %d 1pkt: %12.6f ms\n",first,last,last-first,q->nb_packets,(last-first)/(double)q->nb_packets*1000.0);
-else
-av_log(NULL, AV_LOG_DEBUG,"[debug] queue_time(): audio queue: %12.6f %12.6f diff: %12.6f n: %d 1pkt: %12.6f ms\n",first,last,last-first,q->nb_packets,(last-first)/(double)q->nb_packets*1000.0);
-}
-*/
         }
         pl = pl->next;
     }
@@ -2740,9 +2772,6 @@ static void video_image_display(VideoState *is)
     AVPicture pict;
     float aspect_ratio;
     int width, height;
-//    int x, y;
-//    SDL_Rect rect;
-//    rect_t rect;
     int i;
 
     vp = &is->pictq[is->pictq_rindex];
@@ -2867,7 +2896,6 @@ static void stream_close(VideoState *is)
     is->abort_request = 1;
     slotinfo_t* slotinfo = is->slotinfo;
     is->audio_exit_flag=1;
-//    is->slotinfo->status&=~(STATUS_PLAYER_IMAGE|STATUS_PLAYER_OPENED|STATUS_PLAYER_CONNECT|STATUS_PLAYER_PAUSE);
     is->slotinfo->status&=~(STATUS_PLAYER_IMAGE|STATUS_PLAYER_CONNECT|STATUS_PLAYER_PAUSE|STATUS_PLAYER_SEEK);
     if(is->read_tid)
         pthread_join(is->read_tid, NULL);
@@ -3011,10 +3039,9 @@ static void* refresh_thread(void *opaque)
 /* get the current audio clock value */
 static double get_audio_clock(VideoState *is)
 {
-    if (is->paused) {
+    if (is->paused || globalpause(is->slotinfo)) {
         return is->audio_current_pts;
     } else if(is->audio_current_pts_drift) {
-//av_log(NULL, AV_LOG_DEBUG,"[debug] get_audio_clock(): audio clock: %12.6f decode: %12.6f pts: %12.6f drift: %12.6f + %12.6f = %12.6f\n",is->audio_clock,is->audio_decode_buffer_clock,is->audio_current_pts,is->audio_current_pts_drift, av_gettime() / 1000000.0,is->audio_current_pts_drift + av_gettime() / 1000000.0);
         return is->audio_current_pts_drift + av_gettime() / 1000000.0;
     }
     return 0.0;
@@ -3023,7 +3050,7 @@ static double get_audio_clock(VideoState *is)
 /* get the current video clock value */
 static double get_video_clock(VideoState *is)
 {
-    if (is->paused) {
+    if (is->paused || globalpause(is->slotinfo)) {
         return is->video_current_pts;
     } else if(is->video_current_pts_drift && is->video_current_pts!=AV_NOPTS_VALUE) {
         return is->video_current_pts_drift + av_gettime() / 1000000.0;
@@ -3080,7 +3107,8 @@ static void stream_toggle_pause(VideoState *is)
 {
     pthread_mutex_lock(&is->event_mutex);
     if (is->paused) {
-        is->frame_timer += av_gettime() / 1000000.0 + is->video_current_pts_drift - is->video_current_pts;
+        if(is->video_current_pts_drift)
+            is->frame_timer += av_gettime() / 1000000.0 + is->video_current_pts_drift - is->video_current_pts;
         if(is->read_pause_return != AVERROR(ENOSYS)){
             is->video_current_pts = is->video_current_pts_drift + av_gettime() / 1000000.0;
         }
@@ -3091,6 +3119,32 @@ static void stream_toggle_pause(VideoState *is)
         is->slotinfo->status|=STATUS_PLAYER_PAUSE;
     } else {
         is->slotinfo->status&=~(STATUS_PLAYER_PAUSE);
+    }
+    pthread_mutex_unlock(&is->event_mutex);
+}
+
+static void global_toggle_pause(slotinfo_t* slotinfo)
+{
+    VideoState *is = slotinfo->streampriv;
+    double callback_time;
+    if(!is)
+        return;
+    pthread_mutex_lock(&is->event_mutex);
+    callback_time=av_gettime() / 1000000.0;
+    if (xplayer_global_status->paused) {
+        if(is->video_current_pts_drift)
+            is->frame_timer += av_gettime() / 1000000.0 + is->video_current_pts_drift - is->video_current_pts;
+        if(is->read_pause_return != AVERROR(ENOSYS)){
+            is->video_current_pts = is->video_current_pts_drift + av_gettime() / 1000000.0;
+        }
+        is->video_current_pts_drift = is->video_current_pts - av_gettime() / 1000000.0;
+fprintf(stderr,"global toggle: %d set %d ------------\n",is->slotinfo->slotid,is->slotinfo->pausereq);
+    } else {
+        if(is->audio_current_pts_drift) {
+            is->audio_current_pts = is->audio_current_pts_drift + callback_time;
+            is->audio_current_pts_drift = is->audio_current_pts - callback_time;
+        }
+fprintf(stderr,"global toggle: %d reset -----------\n",is->slotinfo->slotid);
     }
     pthread_mutex_unlock(&is->event_mutex);
 }
@@ -3298,11 +3352,7 @@ retry:
             vqsize = 0;
             sqsize = 0;
             if (is->audio_st)
-#ifdef USE_AUDIO_DECODE_NEW
                 aqsize = is->audio_decode_buffer_len;
-#else
-                aqsize = is->audioq.size;
-#endif
             if (is->video_st)
                 vqsize = is->videoq.size;
             if (is->subtitle_st)
@@ -3310,27 +3360,10 @@ retry:
             av_diff = 0;
             if (is->audio_st && is->video_st)
                 av_diff = get_audio_clock(is) - get_video_clock(is);
-#if 0
-            if(av_diff>1000.0) {
-                av_log(NULL, AV_LOG_DEBUG,"[debug] video_refresh(): slot: %d A-V: %7.3f audio: %7.3f video: %7.3f drift: %7.3f + %7.3f pts: %7.3f %7.3f - %llx %llx\n",is->slotinfo->slotid,av_diff,get_audio_clock(is),get_video_clock(is),is->video_current_pts_drift, av_gettime() / 1000000.0,is->video_current_pts,AV_NOPTS_VALUE,is->video_current_pts,AV_NOPTS_VALUE);
-
-            }
-#endif
             if(is->realtime)
                 snprintf(realtimetext,sizeof(realtimetext)," (RT)");
             else
                 memset(realtimetext,0,sizeof(realtimetext));
-#if 0
-            printf("%7.2f A-V:%7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%"PRId64"/%"PRId64"   \r",
-                   get_master_clock(is),
-                   av_diff,
-                   is->frame_drops_early + is->frame_drops_late,
-                   aqsize / 1024,
-                   vqsize / 1024,
-                   sqsize,
-                   is->video_st ? is->video_st->codec->pts_correction_num_faulty_dts : 0,
-                   is->video_st ? is->video_st->codec->pts_correction_num_faulty_pts : 0);
-#else
             if((is->slotinfo->debugflag & DEBUGFLAG_AV)) {
                 av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] video_refresh():  slot: %d A-V: %7.3f audio: %7.3f video: %7.3f drift: %7.3f + %7.3f pts: %7.3f %7.3f - %llx %llx\n",
                         is->slotinfo->slotid,
@@ -3374,7 +3407,6 @@ retry:
                    queue_time(is, &is->audioq, 0),
                    realtimetext
                    );
-#endif
             fflush(stdout);
 
 #ifdef USE_DEBUG_LIB
@@ -3506,11 +3538,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
     frame_delay += src_frame->repeat_pict * (frame_delay * 0.5);
     is->video_clock += frame_delay;
 
-#if defined(DEBUG_SYNC) && 0
-    printf("frame_type=%c clock=%0.3f pts=%0.3f\n",
-           av_get_picture_type_char(src_frame->pict_type), pts, pts1);
-#endif
-
     /* wait until we have space to put a new picture */
     pthread_mutex_lock(&is->pictq_mutex);
 
@@ -3559,13 +3586,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
             is->videowait+=et-st;
         }
         /* if the queue is aborted, we have to pop the pending ALLOC event or wait for the allocation to complete */
-#if 0
-        if (is->videoq.abort_request && SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_EVENTMASK(FF_ALLOC_EVENT)) != 1) {
-            while (!vp->allocated) {
-                pthread_cond_wait(&is->pictq_cond, &is->pictq_mutex);
-            }
-        }
-#endif
         pthread_mutex_unlock(&is->pictq_mutex);
 
         if (is->videoq.abort_request)
@@ -4112,9 +4132,9 @@ static void* video_thread(void *arg)
         AVFilterBufferRef *picref;
         AVRational tb = filt_out->inputs[0]->time_base;
 #endif
-        while ((is->paused) && !is->videoq.abort_request) {
+        while ((is->paused || globalpause(is->slotinfo)) && !is->videoq.abort_request) {
             st=xplayer_clock();
-            usleep(10000);
+            usleep(1000);
             et=xplayer_clock();
             wtime+=et-st;
         }
@@ -4201,7 +4221,10 @@ static void* video_thread(void *arg)
         if (ret < 0)
         {
 #ifdef THREAD_DEBUG
-            av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): goto end 2 ret=%d, slot: %d 0x%x \n",ret,is->slotinfo->slotid,(unsigned int)is->video_tid);
+            if(is->slotinfo)
+            {
+                av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): goto end 2 ret=%d, slot: %d 0x%x \n",ret,is->slotinfo->slotid,(unsigned int)is->video_tid);
+            }
 #endif
             goto the_end;
         }
@@ -4224,12 +4247,6 @@ static void* video_thread(void *arg)
                         queue_time(is, &is->videoq, 0),
                         queue_time(is, &is->audioq, 0)
                     );
-/*
-            av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): pause_seek: paused: %d\n",is->paused);
-                        is->paused=0;
-                        toggle_pause(is);
-                        is->pause_seek=0;
-*/
         }
         if(is->pause_seek) {
             if(is->pause_seek_curr!=pts)
@@ -4295,14 +4312,20 @@ static void* video_thread(void *arg)
     }
  the_end:
 #ifdef THREAD_DEBUG
-    av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): video thread end, slot: %d 0x%x \n",is->slotinfo->slotid,(unsigned int)is->video_tid);
+    if(is->slotinfo)
+    {
+        av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): video thread end, slot: %d 0x%x \n",is->slotinfo->slotid,(unsigned int)is->video_tid);
+    }
 #endif
 #if CONFIG_AVFILTER
     avfilter_graph_free(&graph);
 #endif
     av_free(frame);
 #ifdef THREAD_DEBUG
-    av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): video thread done, slot: %d 0x%x \n",is->slotinfo->slotid,(unsigned int)is->video_tid);
+    if(is->slotinfo)
+    {
+        av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): video thread done, slot: %d 0x%x \n",is->slotinfo->slotid,(unsigned int)is->video_tid);
+    }
 #endif
     return NULL;
 }
@@ -4318,8 +4341,8 @@ static void* subtitle_thread(void *arg)
     int r, g, b, y, u, v, a;
 
     for(;;) {
-        while (is->paused && !is->subtitleq.abort_request) {
-            usleep(10000);
+        while ((is->paused || globalpause(is->slotinfo)) && !is->subtitleq.abort_request) {
+            usleep(1000);
 //            SDL_Delay(10);
         }
         if (packet_queue_get(is, &is->subtitleq, pkt, 1) < 0)
@@ -4377,6 +4400,7 @@ static void* subtitle_thread(void *arg)
     return NULL;
 }
 
+#if 0
 /* return the new audio buffer size (samples can be added or deleted
    to get better sync if video or external master clock) */
 static int synchronize_audio(VideoState *is, short *samples,
@@ -4451,8 +4475,139 @@ static int synchronize_audio(VideoState *is, short *samples,
 
     return samples_size;
 }
+#endif
 
-static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
+static void audio_add_to_buffer(VideoState *is, unsigned char* data, int data_size)
+{
+    char* tmp;
+    if(!data_size)
+        return;
+    if(!is->audio_decode_buffer) {
+        is->audio_decode_buffer_size=data_size+is->audio_decode_buffer_len;
+        is->audio_decode_buffer=malloc(is->audio_decode_buffer_size);
+    }
+    if(is->audio_decode_buffer_len+data_size>is->audio_decode_buffer_size) {
+        tmp = is->audio_decode_buffer;
+        is->audio_decode_buffer_size=data_size+is->audio_decode_buffer_len;
+        is->audio_decode_buffer=malloc(is->audio_decode_buffer_size*2);
+        memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
+        free(tmp);
+        is->audio_decode_buffer_size*=2;
+    }
+    if(data)
+        memcpy(is->audio_decode_buffer+is->audio_decode_buffer_len,data,data_size);
+    else
+        memset(is->audio_decode_buffer+is->audio_decode_buffer_len,0,data_size);
+    is->audio_decode_buffer_len+=data_size;
+}
+
+static void fill_zero(VideoState *is)
+{
+    int len,n,ch,okch;
+    int16_t min[6];
+    int ok[6];
+    int16_t* audio;
+    int16_t* audioptr;
+
+    if(av_get_bytes_per_sample(is->audio_tgt_fmt)!=2 || is->audio_tgt_channels>6)
+        return;
+    len=is->audio_decode_buffer_len/2/is->audio_tgt_channels;
+    len--;
+    if(len<1)
+        return;
+    audio = (int16_t*)(is->audio_decode_buffer);
+    for(ch=0;ch<is->audio_tgt_channels;ch++) {
+        audioptr=&audio[len*is->audio_tgt_channels+ch];
+        min[ch]=*audioptr;
+        ok[ch]=0;
+    }
+    okch=0;
+    audio = (int16_t*)is->audio_decode_buffer;
+    for(n=len;n>0;n--) {
+        for(ch=0;ch<is->audio_tgt_channels;ch++) {
+            audioptr=&audio[n*is->audio_tgt_channels+ch];
+            if(ok[ch]) {
+                continue;
+            }
+            if((*audioptr==0) || (min[ch]>0 && *audioptr<0) || (min[ch]<0 && *audioptr>0)) {
+                ok[ch]=1;
+                okch++;
+                continue;
+            }
+            if(abs(min[ch])>abs(*audioptr)) {
+                min[ch]=*audioptr;
+            }
+            *audioptr=0;
+        }
+        if(okch==is->audio_tgt_channels)
+            break;
+    }
+}
+
+static void fill_zero_package(VideoState *is, unsigned char* data, int datalen)
+{
+    int len,n,ch,okch;
+    int16_t min[6];
+    int ok[6];
+    int16_t* audio;
+
+    if(av_get_bytes_per_sample(is->audio_tgt_fmt)!=2 || is->audio_tgt_channels>6 || !datalen) {
+        return;
+    }
+    len=datalen/2/is->audio_tgt_channels;
+    audio = (int16_t*)(data);
+    for(ch=0;ch<is->audio_tgt_channels;ch++) {
+        min[ch]=*audio;
+        ok[ch]=0;
+        audio++;
+    }
+    okch=0;
+    audio = (int16_t*)(data);
+    for(n=0;n<len;n++) {
+        for(ch=0;ch<is->audio_tgt_channels;ch++) {
+            if(ok[ch]) {
+                audio++;
+                continue;
+            }
+            if((*audio==0) || (min[ch]>0 && *audio<0) || (min[ch]<0 && *audio>0)) {
+                ok[ch]=1;
+                okch++;
+                audio++;
+                continue;
+            }
+            if(abs(min[ch])>abs(*audio)) {
+                min[ch]=*audio;
+            }
+            *audio=0;
+            audio++;
+        }
+        if(okch==is->audio_tgt_channels)
+            break;
+    }
+}
+
+static int audio_get_from_buffer(VideoState *is, unsigned char* data, int data_size)
+{
+    unsigned char* tmp;
+    if(data_size>is->audio_decode_buffer_len) {
+        data_size=is->audio_decode_buffer_len;
+    }
+    if(data_size) {
+        if(data) {
+            memcpy(data,is->audio_decode_buffer,data_size);
+        }
+        is->audio_decode_buffer_len-=data_size;
+    }
+    if(is->audio_decode_buffer_len) {
+        tmp=malloc(is->audio_decode_buffer_len);
+        memcpy(tmp,is->audio_decode_buffer+data_size,is->audio_decode_buffer_len);
+        memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
+        free(tmp);
+    }
+    return data_size;
+}
+
+static int audio_decode_frame(VideoState *is, AVPacket *pkt)
 {
     int got_frame;
     int len;
@@ -4461,10 +4616,8 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
     char* tmp;
     double clock = 0.0;
     double diff = 0.0;
-//    double ptsdiff = 0.0;
     double l;
     double last_clock = 0;
-//    double dlast_clock = 0;
     AVCodecContext *dec= is->audio_st->codec;
     int len2,resampled_data_size;
     int64_t dec_channel_layout;
@@ -4473,6 +4626,9 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
     int pktdataoffset;
     uint8_t *pktdata;
     int dlen = 0;
+    int ptslen = 0;
+    int difflen = 0;
+    int fillzero = 0;
 
 #ifdef USE_DEBUG_LIB
     if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
@@ -4497,31 +4653,62 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
         }
     } else
         avcodec_get_frame_defaults(is->frame);
+    difflen=0;
     if (pkt->pts != AV_NOPTS_VALUE) {
         last_pts=is->audio_decode_last_pts;
+        if(is->audio_decode_last_pts!=pkt->pts) {
+            ptslen=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq * av_q2d(is->audio_st->time_base);
+            dlen=(pkt->pts-is->audio_decode_last_pts)*ptslen;
+            difflen=dlen-is->audio_clock_diff_len;
+            is->audio_clock_diff_len=0;
+            is->decode_audio_clock = av_q2d(is->audio_st->time_base)*pkt->pts;
+        }
+        l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
         is->audio_decode_last_pts=pkt->pts;
         last_clock = is->decode_audio_clock;
-        is->decode_audio_clock = av_q2d(is->audio_st->time_base)*pkt->pts;
-        if(is->slotinfo->debugflag & DEBUGFLAG_AUDIO_DIFF) {
-            av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] audio_decode_frame2(): audio diff: %12.6f (%12.6f) last: %12.6f curr: %12.6f    \n",is->audio_clock_diff,is->decode_audio_clock-last_clock,last_clock,is->decode_audio_clock);
-        }
         if(last_clock) {
-//            is->audio_clock_diff+=is->decode_audio_clock-last_clock;
-//            av_log(NULL, AV_LOG_DEBUG,"[debug] audio_decode_frame2():audio diff: %12.6f (%12.6f) last: %12.6f curr: %12.6f    \n",is->audio_clock_diff,is->decode_audio_clock-last_clock,last_clock,is->decode_audio_clock);
             diff=is->decode_audio_clock-last_clock;
-//            ptsdiff=diff;
             if(is->pause_seek || !is->read_enable) {
-                is->audio_clock_diff=0.0;
+                is->audio_clock_diff_len=0;
                 last_clock=0.0;
+                difflen=0;
             } else if(is->audio_seek_flag) {
-                is->audio_clock_diff=0.0;
+                is->audio_clock_diff_len=0;
+                is->audio_diff=0;
                 is->audio_seek_flag=0;
                 last_clock=0.0;
+                difflen=0;
             } else if(diff<0.0) {
-//fprintf(stderr,"slot: %d wrong pts: %7.3f old: %7.3f\n",is->slotinfo->slotid,is->decode_audio_clock,last_clock);
                 last_clock=0.0;
                 diff=0.0;
+                difflen=0;
             }
+        }
+//        difflen+=is->audio_diff;
+        is->audio_diff=0;
+        if(difflen) {
+            fprintf(stderr,"slot: %d difflen: %d\n",is->slotinfo->slotid,difflen);
+        }
+        if(difflen>0) {
+            pthread_mutex_lock(&is->audio_decode_buffer_mutex);
+            fillzero=1;
+            fill_zero(is);
+            audio_add_to_buffer(is, NULL, difflen);
+            clock=difflen;
+            l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+            clock/=l;
+            is->decode_audio_clock+=clock;
+            pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
+            difflen=0;
+        }
+        if(difflen<0) {
+            pthread_mutex_lock(&is->audio_decode_buffer_mutex);
+            difflen+=audio_get_from_buffer(is, NULL, -difflen);
+            clock=-difflen;
+            l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+            clock/=l;
+            is->decode_audio_clock-=clock;
+            pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
         }
     }
     pktdataoffset=0;
@@ -4530,7 +4717,6 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
         pkt->data=pktdata+pktdataoffset;
         len = avcodec_decode_audio4(dec, is->frame, &got_frame, pkt);
         pkt->data=pktdata;
-//        pkt->data += len;
         pktdataoffset+=len;
         pkt->size -= len;
         if (!got_frame) {
@@ -4550,7 +4736,7 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
                                              dec_channel_layout,           dec->sample_fmt,   dec->sample_rate,
                                              0, NULL);
             if (!is->swr_ctx || swr_init(is->swr_ctx) < 0) {
-                av_log(NULL, AV_LOG_ERROR, "[error] audio_decode_frame2(): Cannot create sample rate converter for conversion of %d Hz %s %d channels to %d Hz %s %d channels!\n",
+                av_log(NULL, AV_LOG_ERROR, "[error] audio_decode_frame(): Cannot create sample rate converter for conversion of %d Hz %s %d channels to %d Hz %s %d channels!\n",
                     dec->sample_rate,
                     av_get_sample_fmt_name(dec->sample_fmt),
                     dec->channels,
@@ -4571,11 +4757,11 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
             len2 = swr_convert(is->swr_ctx, out, sizeof(is->audio_buf2) / is->audio_tgt_channels / av_get_bytes_per_sample(is->audio_tgt_fmt),
                                             in, data_size / dec->channels / av_get_bytes_per_sample(dec->sample_fmt));
             if (len2 < 0) {
-                av_log(NULL, AV_LOG_ERROR, "[error] audio_decode_frame2():audio_resample() failed\n");
+                av_log(NULL, AV_LOG_ERROR, "[error] audio_decode_frame():audio_resample() failed\n");
                 break;
             }
             if (len2 == sizeof(is->audio_buf2) / is->audio_tgt_channels / av_get_bytes_per_sample(is->audio_tgt_fmt)) {
-                av_log(NULL, AV_LOG_ERROR, "[warning] audio_decode_frame2(): audio buffer is probably too small\n");
+                av_log(NULL, AV_LOG_ERROR, "[warning] audio_decode_frame(): audio buffer is probably too small\n");
                 swr_init(is->swr_ctx);
             }
             is->audio_buf = is->audio_buf2;
@@ -4584,6 +4770,10 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
             is->audio_buf = is->frame->data[0];
         }
         data_size=resampled_data_size;
+        if(fillzero) {
+            fill_zero_package(is, is->audio_buf, data_size);
+            fillzero=0;
+        }
 
         pthread_mutex_lock(&is->audio_decode_buffer_mutex);
         if(!is->audio_decode_buffer) {
@@ -4598,12 +4788,14 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
             free(tmp);
             is->audio_decode_buffer_size*=2;
         }
-        if(last_clock) {
+        if(last_clock || resampled_data_size) {
             clock=resampled_data_size;
             dlen+=resampled_data_size;
+            is->audio_clock_diff_len+=resampled_data_size;
             l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
             clock/=l;
             diff-=clock;
+            is->decode_audio_clock+=clock;
         }
 
         memcpy(is->audio_decode_buffer+is->audio_decode_buffer_len,is->audio_buf,resampled_data_size);
@@ -4612,14 +4804,8 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
         l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
         clock/=l;
         if(first && last_pts != AV_NOPTS_VALUE && last_pts!=is->audio_decode_last_pts && !is->read_enable) {
-/*
-            av_log(NULL, AV_LOG_DEBUG,"[debug] audio_decode_frame2(): decode pkt: %lld last: %lld clock: %12.6f last: %12.6f buffer: %12.6f (%6d) -> %12.6f  \n",
-                    pkt->pts,last_pts,
-                    is->decode_audio_clock,last_clock,clock,blen,is->decode_audio_clock-clock);
-*/
-            is->audio_decode_buffer_clock=is->decode_audio_clock-clock;
             if((is->slotinfo->debugflag & DEBUGFLAG_AV)) {
-                av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] audio_decode_frame2(): audio decode_buffer_clock: %12.6f = %12.6f - %12.6f \n",is->audio_decode_buffer_clock, is->decode_audio_clock, clock);
+                av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] audio_decode_frame(): audio decode_buffer_clock: %12.6f = %12.6f - %12.6f \n",is->audio_decode_buffer_clock, is->decode_audio_clock, clock);
             }
         }
         first=0;
@@ -4628,11 +4814,16 @@ static int audio_decode_frame2(VideoState *is, AVPacket *pkt)
     clock=dlen;
     l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
     clock/=l;
-if(diff<-0.05 || diff>0.05)
-{
-//    fprintf(stderr,"diff: %7.3f l: %d freq: %d clock: %7.3f pts diff: %7.3f (%7.3f)\n",diff,dlen,is->audio_tgt_freq,clock,ptsdiff,clock-ptsdiff);
-}
-    is->audio_clock_diff+=diff;
+    if(difflen<0) {
+        pthread_mutex_lock(&is->audio_decode_buffer_mutex);
+        difflen+=audio_get_from_buffer(is, NULL, -difflen);
+//        is->audio_diff+=difflen;
+        clock=-difflen;
+        l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+        clock/=l;
+        is->decode_audio_clock-=clock;
+        pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
+    }
     av_free_packet(pkt);
     return 0;
 }
@@ -4647,6 +4838,7 @@ static void audio_decode_flush(VideoState *is)
     is->audio_decode_buffer_size=0;
     is->audio_decode_buffer_clock=0.0;
     is->audio_decode_last_pts=0;
+    is->audio_drop=0;
     is->decode_audio_clock=0;
     av_log(NULL, AV_LOG_DEBUG,"[debug] audio_decode_flush(): slot: %d audio decode flush\n",is->slotinfo->slotid);
     pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
@@ -4656,15 +4848,15 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
 {
     VideoState *is = opaque;
     char* tmp;
-    double clock,l,pts=0.0,dl;
-//    int bytes_per_sec;
-//    int ol;
-    int diff_len, len1;
+    double clock,l;
+    double droptime = 0.0;
+    int wlen;
     uint8_t* stream = adata->audio;
     af_data_t* af_data = NULL;
     event_t event;
+    char info[8192];
+    int ptsvalid = 1;
 
-//    int rlen=len;
     memset(stream,0,len);
     if(!is->audio_st || is->audio_exit_flag || is->read_enable!=1) {
         is->slotinfo->audio_info.valid=0;
@@ -4675,10 +4867,26 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
         is->start_time=0;
         return adata;
     }
-
-//    is->slotinfo->audio_callback_time = av_gettime();
-
     pthread_mutex_lock(&is->audio_decode_buffer_mutex);
+    if(globalpause(is->slotinfo) && !is->slotinfo->pausereq && len<=is->audio_decode_buffer_len) {
+        pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
+        return adata;
+    }
+    if(is->slotinfo->pausereq) {
+        clock=GLOBAL_PAUSE_LIMIT;
+        l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+        clock=clock*l;
+        wlen=clock;
+        if(is->audio_decode_buffer_len>=wlen+is->audio_drop && is->audio_decode_buffer_len>=len) {
+            is->slotinfo->pausereq=0;
+        }
+    }
+    if(globalpause(is->slotinfo))
+    {
+        pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
+        return adata;
+    }
+    is->slotinfo->audio_callback_time = av_gettime();
     if(is->slotinfo->af && (is->slotinfo->setvolume || is->slotinfo->setmute)) {
         if(is->slotinfo->setmute) {
             if(is->slotinfo->mute) {
@@ -4693,61 +4901,11 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
             is->slotinfo->setvolume=0;
         }
     }
-#if 1
-    diff_len = 0;
-    if(is->audio_clock_diff>0.0) {
-        diff_len = is->audio_clock_diff * is->audio_tgt_freq;
-        diff_len = diff_len * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-    }
     if(!strcmp(is->ic->iformat->name, "rtsp") && is->ic->duration==AV_NOPTS_VALUE) {
-        diff_len = 0;
-        is->audio_clock_diff=0;
+        is->audio_clock_diff_len=0;
+        is->audio_diff=0;
     }
     is->audio_buf_size = sizeof(is->silence_buf);
-//av_log(NULL, AV_LOG_DEBUG,"diff: %12.6f %d %d  \n",is->audio_clock_diff,diff_len,is->audio_buf_size);
-#if 1
-    if(is->audio_buf_size && diff_len>is->audio_buf_size) {
-        len1=is->audio_buf_size;
-#else
-    if(diff_len>1024) {
-        len1=1024;
-#endif
-        len1=len;
-        if(len1>is->audio_buf_size)
-            len1=is->audio_buf_size;
-        memset(stream,0,len1);
-
-        av_log(NULL, AV_LOG_DEBUG,"[debug] read_audio_data(): slot: %d audio corr: %d %12.6f -> %d %12.6f \n",is->slotinfo->slotid,diff_len,is->audio_clock_diff,len1,pts);
-//        fprintf(stderr,"[debug] read_audio_data(): slot: %d audio corr: %d %12.6f -> %d %12.6f \n",is->slotinfo->slotid,diff_len,is->audio_clock_diff,len1,pts);
-
-        pts=len1;
-        dl=is->audio_tgt_freq * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-        pts/=dl;
-        is->last_audio_pts+=pts;
-        is->audio_clock_diff-=pts;
-
-        if(len==len1) {
-            if(!is->slotinfo->af) {
-                is->slotinfo->af=af_init(is->audio_tgt_freq, is->audio_tgt_channels, AUDIO_FORMAT, 0, 10.0);
-                af_volume_level(is->slotinfo->af, is->slotinfo->volume);
-                is->slotinfo->setvolume=0;
-            }
-            af_data = af_play(is->slotinfo->af,adata);
-#ifdef USE_DEBUG_LIB
-            if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
-                slotdebug_t* slotdebugs = debugmem_getslot(dmem);
-                if(slotdebugs) {
-                    slotdebugs[is->slotinfo->slotid].abytes+=af_data->len;
-                }
-            }
-#endif
-            return af_data;
-        }
-        len-=len1;
-        stream+=len1;
-    }
-#endif
-//    ol=is->audio_decode_buffer_len;
 #ifdef USE_DEBUG_LIB
     if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
         slotdebug_t* slotdebugs = debugmem_getslot(dmem);
@@ -4757,7 +4915,8 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
     }
 #endif
     if(len>is->audio_decode_buffer_len) {
-//fprintf(stderr,"slot: %d len: %d buffer len: %d\n",is->slotinfo->slotid,len,is->audio_decode_buffer_len);
+        ptsvalid = 0;
+        is->audio_drop+=len-is->audio_decode_buffer_len;
         len=is->audio_decode_buffer_len;
         double mc = get_master_clock(is);
         if(is->slotinfo->length>0.0 && is->slotinfo->length<mc && is->slotinfo->length+2.0>=mc)
@@ -4769,6 +4928,17 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
             event.type = FF_STOP_EVENT;
             event.data = is->slotinfo->streampriv;
             push_event(is->slotinfo->eventqueue, &event);
+        } else {
+            is->slotinfo->pausereq=1;
+        }
+        is->audio_drop=0;
+    } else if(is->slotinfo->pausereq) {
+        clock=GLOBAL_PAUSE_LIMIT;
+        l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+        clock=clock*l;
+        wlen=clock;
+        if(is->audio_decode_buffer_len>=wlen+is->audio_drop) {
+            is->slotinfo->pausereq=0;
         }
     }
     if(!len) {
@@ -4785,17 +4955,35 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
         memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
         free(tmp);
     }
-    if(len) {
-        is->audio_clock=is->audio_decode_buffer_clock;
-        clock=len;
+    memset(info,0,sizeof(info));
+    clock=0.0;
+    if(len && ptsvalid) {
         l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+        clock=len;
         clock/=l;
-        is->audio_decode_buffer_clock=is->decode_audio_clock - clock - is->audio_decode_buffer_len/l;
-//        bytes_per_sec = is->audio_tgt_freq * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-        is->audio_current_pts = is->audio_clock /*- (double)(2 * is->audio_hw_buf_size + is->audio_write_buf_size) / bytes_per_sec*/;
+        snprintf(info,sizeof(info),"slot: %d audio: %8.3f decode_buffer_clock: %8.3f  old: %8.3f diff: %8.3f (clock: %8.3f len: %8.3f)\n",is->slotinfo->slotid,
+                                    is->audio_clock,(is->decode_audio_clock - clock - is->audio_decode_buffer_len/l),is->audio_decode_buffer_clock,
+                                    (is->decode_audio_clock - clock - is->audio_decode_buffer_len/l)-is->audio_decode_buffer_clock,
+                                    clock,is->audio_decode_buffer_len/l);
+        is->audio_decode_buffer_clock=is->decode_audio_clock - clock - is->audio_decode_buffer_len/l - droptime;
+        is->audio_clock=is->decode_audio_clock - (double)is->audio_decode_buffer_len/l;
+        if(is->audio_clock) {
+            is->slotinfo->audio_callback_time = av_gettime();
+            is->audio_current_pts = is->audio_clock;
+            is->audio_current_pts_drift = is->audio_current_pts - is->slotinfo->audio_callback_time / 1000000.0;
+        }
+#ifdef USE_DEBUG_LIB
+        if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
+            slotdebug_t* slotdebugs = debugmem_getslot(dmem);
+            if(slotdebugs) {
+                slotdebugs[is->slotinfo->slotid].audio_clock=is->audio_clock;
+            }
+        }
+#endif
+    } else {
+        is->audio_decode_buffer_clock=0.0;
     }
-//    is->audio_decode_buffer_clock=is->decode_audio_clock-clock - queue_time(is, &is->audioq, 0);
-//    is->audio_decode_buffer_clock+=clock;
+    l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
     if((is->slotinfo->debugflag & DEBUGFLAG_AV)) {
         av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_audio_data(): slot: %d audio decode_buffer_clock: %12.6f = %12.6f - %12.6f len: %d %d \n",
                 is->slotinfo->slotid,
@@ -4806,35 +4994,6 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* adata, int len)
 
     is->audio_write_buf_size = len;
     /* Let's assume the audio driver that is used by SDL has two periods. */
-#if 0
-    double pts1 = is->audio_current_pts;
-    double pts2 = is->audio_clock;
-#endif
-
-    double calltime1 = is->slotinfo->audio_callback_time;
-    double calltime2 = av_gettime();
-    double calldiff = (calltime2-calltime1) / 1000000.0;
-if(calldiff>0.018)
-{
-//fprintf(stderr,"slot: %d call diff: %7.3f\n",is->slotinfo->slotid,calldiff);
-}
-#if 0
-    double clk1 = is->audio_current_pts_drift + av_gettime() / 1000000.0;
-#endif
-    is->slotinfo->audio_callback_time = av_gettime();
-    is->audio_current_pts_drift = is->audio_current_pts - is->slotinfo->audio_callback_time / 1000000.0;
-#if 0
-    double clk2 = is->audio_current_pts_drift + av_gettime() / 1000000.0;
-if(clk1-clk2>0.05 || clk1-clk2<-0.05)
-{
-    fprintf(stderr,"slot: %d diff: %.3f (%.3f %.3f) call: %.3f (%.3f %.3f) pts: %.3f (%.3f %.3f) %.3f %.3f\n",is->slotinfo->slotid,clk1-clk2,clk1,clk2,
-            (calltime2-calltime1) / 1000000.0, calltime1 / 1000000.0, calltime2 / 1000000.0,
-            pts1-pts2,pts1,pts2,
-            clock,
-            is->audio_decode_buffer_len/l
-            );
-}
-#endif
     if((is->slotinfo->debugflag & DEBUGFLAG_AV)) {
         av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_audio_data(): slot: %d audio pts drift: %12.6f = %12.6f - %12.6f \n",
                 is->slotinfo->slotid,
@@ -4854,9 +5013,11 @@ if(clk1-clk2>0.05 || clk1-clk2<-0.05)
     if(!is->start_time) {
         is->start_time=av_gettime();
         is->start_pts=is->audio_current_pts;
+        is->start_pts=get_audio_clock(is);
     }
     double spts = (av_gettime()-is->start_time) / 1000000.0;
     double rpts = is->audio_current_pts-is->start_pts;
+    rpts = get_audio_clock(is)-is->start_pts;
     double max_diff = spts-rpts;
     if(max_diff<0.0)
         max_diff=-max_diff;
@@ -4866,323 +5027,20 @@ if(clk1-clk2>0.05 || clk1-clk2<-0.05)
     }
 
 
-#if 0
-    if(spts-rpts<-0.05 || spts-rpts>0.05) {
-        fprintf(stderr,"slot: %d RA: %12.6f\n",is->slotinfo->slotid,spts-rpts);
-    }
-#endif
-
 #ifdef USE_DEBUG_LIB
     if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
         slotdebug_t* slotdebugs = debugmem_getslot(dmem);
         if(slotdebugs) {
-            slotdebugs[is->slotinfo->slotid].audio_diff=is->audio_clock_diff;
+            slotdebugs[is->slotinfo->slotid].audio_diff=0.0;
             slotdebugs[is->slotinfo->slotid].abytes+=af_data->len;
             slotdebugs[is->slotinfo->slotid].acpts=is->audio_current_pts;
             slotdebugs[is->slotinfo->slotid].audio_real_diff=spts-rpts;
+            slotdebugs[is->slotinfo->slotid].real_clock=spts;
         }
     }
 #endif
     return af_data;
-//av_log(NULL, AV_LOG_DEBUG,"Audio clock: %12.6f decode: %12.6f pts: %12.6f  read: %5d %5d (%5d)\n",is->audio_clock,is->audio_decode_buffer_clock,is->audio_current_pts,len,ol,rlen);
 }
-
-
-#ifndef USE_AUDIO_DECODE_NEW
-/* decode one audio frame and returns its uncompressed size */
-static int audio_decode_frame(VideoState *is, double *pts_ptr)
-{
-    AVPacket *pkt_temp = &is->audio_pkt_temp;
-    AVPacket *pkt = &is->audio_pkt;
-    AVCodecContext *dec= is->audio_st->codec;
-    int len1, len2, data_size, resampled_data_size;
-    int64_t dec_channel_layout;
-    int got_frame;
-    double pts;
-    int new_packet = 0;
-    int flush_complete = 0;
-
-    for(;;) {
-        /* NOTE: the audio packet can contain several frames */
-        while (pkt_temp->size > 0 || (!pkt_temp->data && new_packet)) {
-            if (!is->frame) {
-                if (!(is->frame = avcodec_alloc_frame()))
-                    return AVERROR(ENOMEM);
-            } else
-                avcodec_get_frame_defaults(is->frame);
-
-            if (flush_complete)
-                break;
-            new_packet = 0;
-            len1 = avcodec_decode_audio4(dec, is->frame, &got_frame, pkt_temp);
-            if (len1 < 0) {
-                /* if error, we skip the frame */
-                pkt_temp->size = 0;
-                break;
-            }
-
-            pkt_temp->data += len1;
-            pkt_temp->size -= len1;
-
-            if (!got_frame) {
-                /* stop sending empty packets if the decoder is finished */
-                if (!pkt_temp->data && dec->codec->capabilities & CODEC_CAP_DELAY)
-                    flush_complete = 1;
-                continue;
-            }
-            data_size = av_samples_get_buffer_size(NULL, dec->channels,
-                                                   is->frame->nb_samples,
-                                                   dec->sample_fmt, 1);
-
-            dec_channel_layout = (dec->channel_layout && dec->channels == av_get_channel_layout_nb_channels(dec->channel_layout)) ? dec->channel_layout : av_get_default_channel_layout(dec->channels);
-
-            if (dec->sample_fmt != is->audio_src_fmt || dec_channel_layout != is->audio_src_channel_layout || dec->sample_rate != is->audio_src_freq) {
-                if (is->swr_ctx)
-                    swr_free(&is->swr_ctx);
-                is->swr_ctx = swr_alloc_set_opts(NULL,
-                                                 is->audio_tgt_channel_layout, is->audio_tgt_fmt, is->audio_tgt_freq,
-                                                 dec_channel_layout,           dec->sample_fmt,   dec->sample_rate,
-                                                 0, NULL);
-                if (!is->swr_ctx || swr_init(is->swr_ctx) < 0) {
-                    av_log(NULL, AV_LOG_ERROR, "[error] audio_decode_frame(): Cannot create sample rate converter for conversion of %d Hz %s %d channels to %d Hz %s %d channels!\n",
-                        dec->sample_rate,
-                        av_get_sample_fmt_name(dec->sample_fmt),
-                        dec->channels,
-                        is->audio_tgt_freq,
-                        av_get_sample_fmt_name(is->audio_tgt_fmt),
-                        is->audio_tgt_channels);
-                    break;
-                }
-                is->audio_src_channel_layout = dec_channel_layout;
-                is->audio_src_channels = dec->channels;
-                is->audio_src_freq = dec->sample_rate;
-                is->audio_src_fmt = dec->sample_fmt;
-            }
-
-            resampled_data_size = data_size;
-            if (is->swr_ctx) {
-                const uint8_t *in[] = { is->frame->data[0] };
-                uint8_t *out[] = {is->audio_buf2};
-                len2 = swr_convert(is->swr_ctx, out, sizeof(is->audio_buf2) / is->audio_tgt_channels / av_get_bytes_per_sample(is->audio_tgt_fmt),
-                                                in, data_size / dec->channels / av_get_bytes_per_sample(dec->sample_fmt));
-                if (len2 < 0) {
-                    av_log(NULL, AV_LOG_ERROR, "[error] audio_decode_frame(): audio_resample() failed\n");
-                    break;
-                }
-                if (len2 == sizeof(is->audio_buf2) / is->audio_tgt_channels / av_get_bytes_per_sample(is->audio_tgt_fmt)) {
-                    av_log(NULL, AV_LOG_ERROR, "[warning] audio_decode_frame(): audio buffer is probably too small\n");
-                    swr_init(is->swr_ctx);
-                }
-                is->audio_buf = is->audio_buf2;
-                resampled_data_size = len2 * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-            } else {
-                is->audio_buf = is->frame->data[0];
-            }
-
-            /* if no pts, then compute it */
-            pts = is->audio_clock;
-            *pts_ptr = pts;
-            is->audio_clock += (double)data_size / (dec->channels * dec->sample_rate * av_get_bytes_per_sample(dec->sample_fmt));
-#ifdef DEBUG
-            {
-                printf("audio: delay=%0.3f clock=%0.3f pts=%0.3f\n",
-                       is->audio_clock - is->dlast_clock,
-                       is->audio_clock, pts);
-                is->dlast_clock = is->audio_clock;
-            }
-#endif
-            is->audio_buf_len = resampled_data_size;
-            return resampled_data_size;
-        }
-
-        /* free the current packet */
-        if (pkt->data)
-            av_free_packet(pkt);
-
-        if (is->paused || is->audioq.abort_request) {
-            return -1;
-        }
-
-#if USES_PAUSESEEK
-        if(is->pause_seek) {
-            if((new_packet = packet_queue_get(is, &is->audioq, pkt, 0)) <= 0) {
-                return -1;
-            }
-        } else
-#endif
-
-        /* read next packet */
-        audiodebugpass(20);
-        if ((new_packet = packet_queue_get(is, &is->audioq, pkt, 1)) < 0) {
-            audiodebugpass(21);
-            return -1;
-        }
-        audiodebugpass(22);
-        if (pkt->data == is->flush_pkt.data)
-            avcodec_flush_buffers(dec);
-
-        *pkt_temp = *pkt;
-
-        /* if update the audio clock with the pts */
-        if (pkt->pts != AV_NOPTS_VALUE) {
-            double last_clock = is->audio_clock;
-            is->audio_clock = av_q2d(is->audio_st->time_base)*pkt->pts;
-            if(last_clock) {
-//av_log(NULL, AV_LOG_DEBUG,"audio clock: %12.6f last: %12.6f diff: %12.6f => %12.6f \n",is->audio_clock,last_clock,is->audio_clock-last_clock,is->audio_clock_diff+is->audio_clock-last_clock);
-                is->audio_clock_diff+=is->audio_clock-last_clock;
-                if(is->pause_seek) {
-                    is->audio_clock_diff=0.0;
-                } else if(is->audio_seek_flag) {
-                    is->audio_clock_diff=0.0;
-                    is->audio_seek_flag=0;
-                }
-//                av_log(NULL, AV_LOG_DEBUG,"decode audio clock diff: %12.6f ==> pts: %12.6f, calc: %12.6f\n",is->audio_clock_diff,is->audio_clock,last_clock);
-            }
-        }
-    }
-}
-
-/* prepare a new audio buffer */
-static void read_audio_callback(void *opaque, uint8_t *stream, int len, double timelen)
-{
-    VideoState *is = opaque;
-    int audio_size, len1;
-    int bytes_per_sec;
-    int diff_len;
-    double pts;
-    double dl;
-
-#ifdef USE_DEBUG_LIB
-    if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
-        slotdebug_t* slotdebugs = debugmem_getslot(dmem);
-        if(slotdebugs) {
-            slotdebugs[is->slotinfo->slotid].audio_proc++;
-        }
-    }
-#endif
-//av_log(NULL, AV_LOG_DEBUG,"read_audio_callback: %d %12.6f\n",len,timelen);
-    if(!is->audio_st || is->audio_exit_flag || is->read_enable!=1) {
-        is->slotinfo->audio_info.valid=0;
-        return;
-    }
-
-    is->slotinfo->audio_callback_time = av_gettime();
-    if(!len && timelen>0.0) {
-        int l = timelen*is->audio_src_freq;
-        len=l*is->audio_src_channels*2;
-    }
-
-#if 1
-    diff_len = 0;
-    if(is->audio_clock_diff>0.0) {
-        diff_len = is->audio_clock_diff * is->audio_tgt_freq;
-        diff_len = diff_len * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-    }
-    if(!strcmp(is->ic->iformat->name, "rtsp") && is->ic->duration==AV_NOPTS_VALUE) {
-        diff_len = 0;
-        is->audio_clock_diff=0;
-    }
-    if(is->audio_buf_size && diff_len>is->audio_buf_size) {
-        len1=is->audio_buf_size;
-        if(len1>len)
-            len1=len;
-        memset(stream,0,len1);
-
-        av_log(NULL, AV_LOG_DEBUG,"[debug] read_audio_callback(): slot: %d audio corr: %d %12.6f -> %d %12.6f buf: %d \n",
-                is->slotinfo->slotid,
-                diff_len,is->audio_clock_diff,len1,pts,is->audio_buf_size);
-
-        pts=len1;
-        dl=is->audio_tgt_freq * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-        pts/=dl;
-        is->last_audio_pts+=pts;
-        is->audio_clock_diff-=pts;
-
-        if(len==len1)
-            return;
-        len-=len1;
-        stream+=len1;
-    }
-#endif
-#if 0
-    if(!packet_queue_is(is, &is->audioq))
-    {
-        if(len)
-            memset(stream, 0, len);
-        return;
-    }
-#endif
-    while (len > 0) {
-        len1=0;
-        if (is->audio_buf_index >= is->audio_buf_size) {
-//av_log(NULL, AV_LOG_DEBUG,"================> %d (%d) %12.6f <==============\n",diff_len,is->audio_buf_len,is->audio_clock_diff);
-            audiodebugpass(10);
-            audio_size = audio_decode_frame(is, &pts);
-            audiodebugpass(11);
-            if (audio_size < 0) {
-                /* if error, just output silence */
-                is->audio_buf      = is->silence_buf;
-                is->audio_buf_size = sizeof(is->silence_buf);
-#ifdef USE_DEBUG_LIB
-                if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
-                    slotdebug_t* slotdebugs = debugmem_getslot(dmem);
-                    if(slotdebugs) {
-                        slotdebugs[is->slotinfo->slotid].silence+=is->audio_buf_size;
-                    }
-                }
-#endif
-            } else {
-                audio_size = synchronize_audio(is, (int16_t *)is->audio_buf, audio_size,
-                                              pts);
-                is->audio_buf_size = audio_size;
-            }
-            is->audio_buf_index = 0;
-            if(!is->first_time)
-                is->first_time=is->last_audio_callback_time;
-            if(!is->first_pts)
-                is->first_pts=pts;
-            double t = is->slotinfo->audio_callback_time-is->last_audio_callback_time;
-            t = t/1e6;
-//av_log(NULL, AV_LOG_DEBUG,"APTS: %12.6f Audio: %12.6f Time: %12.6f Diff: %12.6f len: %d\n",pts,pts-is->last_audio_pts,t,pts-is->last_audio_pts-t,audio_size);
-            if(is->last_audio_callback_time<is->slotinfo->audio_callback_time)
-                is->last_audio_callback_time=is->slotinfo->audio_callback_time;
-            is->last_audio_pts=pts;
-        }
-        len1 = is->audio_buf_size - is->audio_buf_index;
-        if (len1 > len && len)
-            len1 = len;
-        if(stream) {
-            if(is->paused || is->pause_seek)
-                memset(stream, 0, len1);
-            else
-                memcpy(stream, (uint8_t *)is->audio_buf + is->audio_buf_index, len1);
-            stream += len1;
-        }
-            len -= len1;
-        is->audio_buf_index += len1;
-    }
-    bytes_per_sec = is->audio_tgt_freq * is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt);
-    is->audio_write_buf_size = is->audio_buf_size - is->audio_buf_index;
-    /* Let's assume the audio driver that is used by SDL has two periods. */
-    is->audio_current_pts = is->audio_clock - (double)(2 * is->audio_hw_buf_size + is->audio_write_buf_size) / bytes_per_sec;
-//av_log(NULL, AV_LOG_DEBUG,"audio pts: %12.6f = %12.6f - %12.6f \n",is->audio_current_pts, is->audio_clock, (double)(2 * is->audio_hw_buf_size + is->audio_write_buf_size) / bytes_per_sec);
-    is->audio_current_pts_drift = is->audio_current_pts - is->slotinfo->audio_callback_time / 1000000.0;
-    if((is->slotinfo->debugflag & DEBUGFLAG_AV)) {
-        av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_audio_callback(): slot: %d audio pts drift: %12.6f = %12.6f - %12.6f \n",
-                is->slotinfo->slotid,
-                is->audio_current_pts_drift, is->audio_current_pts, is->slotinfo->audio_callback_time / 1000000.0);
-    }
-    is->slotinfo->audio_info.valid=1;
-    is->slotinfo->audio_info.streamid=is->audio_stream;
-    is->slotinfo->audio_info.channels=is->audio_src_channels;
-    is->slotinfo->audio_info.rate=is->audio_src_freq;
-    is->slotinfo->audio_info.format=audio_ffmpeg_format(is->audio_src_fmt);
-//av_log(NULL, AV_LOG_DEBUG,"Audio pts: %12.6f %12.6f (%12.6f)\n",pts,is->audio_current_pts,is->audio_current_pts-pts);
-    double tt = is->slotinfo->audio_callback_time-is->first_time;
-    tt=tt/1e6;
-//av_log(NULL, AV_LOG_DEBUG,"Audio pts: %12.6f    pts: %12.6f time: %12.6f diff: %12.6f\n",pts,pts-is->first_pts,tt,pts-is->first_pts-tt);
-}
-#endif
 
 #if defined(__APPLE__)
 static int vda_get_buffer(struct AVCodecContext *c, AVFrame *pic)
@@ -5453,7 +5311,6 @@ static int stream_component_open(VideoState *is, int stream_index)
             av_log(NULL, AV_LOG_DEBUG, "[debug] stream_component_open(): w: %d, h: %d\n", avctx->width, avctx->height);
             is->vdactx.format = 'avc1';
             is->vdactx.cv_pix_fmt_type = kCVPixelFormatType_422YpCbCr8;
-//#endif
             av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): Extra data: (%d):\n",avctx->extradata_size);
             for(n=0;n<avctx->extradata_size;n++) {
                 av_log(NULL, AV_LOG_DEBUG,"%02x ",avctx->extradata[n]);
@@ -5461,30 +5318,6 @@ static int stream_component_open(VideoState *is, int stream_index)
             av_log(NULL, AV_LOG_DEBUG,"\n");
             uint8_t *extradata = NULL;
             int extrasize = avctx->extradata_size;
-#if 0
-            if(extradata && extrasize >= 7) {
-                if (extradata[0] == 0 && extradata[1] == 0 && extradata[2] == 0 && extradata[3] == 1)
-                {
-                    // video content is from x264 or from bytestream h264 (AnnexB format)
-                    // NAL reformating to bitstream format needed
-                    AVIOContext *pb;
-                    if (avio_open_dyn_buf(&pb) >= 0)
-                    {
-//                        m_annexb = true;
-                        isom_write_avcc(pb, extradata, extrasize);
-                        // unhook from ffmpeg's extradata
-                        extradata = NULL;
-                        // extract the avcC atom data into extradata then write it into avcCData for VDADecoder
-                        extrasize = avio_close_dyn_buf(pb, &extradata);
-                        av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): Converted extra data: (%d):\n",avctx->extradata_size);
-                        for(n=0;n<avctx->extradata_size;n++) {
-                            av_log(NULL, AV_LOG_DEBUG,"%02x ",avctx->extradata[n]);
-                        }
-                        av_log(NULL, AV_LOG_DEBUG,"\n");
-                    }
-                }
-            }
-#endif
 /// Convert annex-b to AVCC:
             if(extrasize>=7 && avctx->extradata[0]==0x00 && avctx->extradata[1]==0x00 && avctx->extradata[2]==0x01) {
                 unsigned int spssize = 0;
@@ -5533,10 +5366,6 @@ static int stream_component_open(VideoState *is, int stream_index)
             int status = ff_vda_create_decoder(&is->vdactx, extradata, extrasize);
             if(extradata)
                 free(extradata);
-//            int status = ff_vda_create_decoder(&is->vdactx, &extra_data[0], sizeof(extra_data));
-//					avctx->extradata,avctx->extradata_size);
-
-
             if(!status) {
                 avctx->hwaccel_context = &is->vdactx;
                 is->usesvda=is->slotinfo->vda;
@@ -5548,21 +5377,9 @@ static int stream_component_open(VideoState *is, int stream_index)
             } else {
                 av_log(NULL, AV_LOG_ERROR, "[error] stream_component_open(): VDA decoder init ERROR\n");
             }
-//            avctx->get_buffer = vda_get_buffer;
-//            avctx->release_buffer = vda_release_buffer;
         }
 #endif
     }
-#if 0
-    av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): Profile: %02x Compatible: %02x Level: %02x\n",avctx->profile, 0, avctx->level);
-    av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): Extra data: (%d):\n",avctx->extradata_size);
-    for(n=0;n<avctx->extradata_size;n++) {
-        av_log(NULL, AV_LOG_DEBUG,"%02x ",avctx->extradata[n]);
-    }
-    av_log(NULL, AV_LOG_DEBUG,"\n");
-    av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): AVCTX: %p\n",avctx);
-#endif
-
     if(codec->capabilities & CODEC_CAP_DR1)
         avctx->flags |= CODEC_FLAG_EMU_EDGE;
 
@@ -5809,15 +5626,7 @@ static void* read_thread(void *arg)
         ret = -1;
         goto fail;
     }
-/*
-    if ((t = av_dict_get(is->slotinfo->format_opts, "", NULL, AV_DICT_IGNORE_SUFFIX))) {
-        av_log(NULL, AV_LOG_ERROR, "Option %s not found. 2\n", t->key);
-        ret = AVERROR_OPTION_NOT_FOUND;
-        goto fail;
-    }
-*/
     is->ic = ic;
-
     if(is->slotinfo->genpts)
         ic->flags |= AVFMT_FLAG_GENPTS;
 
@@ -5974,7 +5783,11 @@ static void* read_thread(void *arg)
         if (is->abort_request)
             break;
         pthread_mutex_lock(&is->event_mutex);
-        if (is->paused != is->last_paused) {
+        if (is->last_paused && is->slotinfo->pausereq) {
+            is->last_paused = 0;
+            is->read_pause_return= av_read_pause(ic);
+        }
+        if ((is->paused != is->last_paused) && (!globalpause(is->slotinfo) || is->last_paused) && !is->slotinfo->pausereq) {
             is->last_paused = is->paused;
             pthread_mutex_unlock(&is->event_mutex);
             if (is->last_paused)
@@ -6057,26 +5870,19 @@ static void* read_thread(void *arg)
         } else {
             pthread_mutex_unlock(&is->event_mutex);
         }
-#ifdef USE_AUDIO_DECODE_NEW
             int aqsize = is->audio_decode_buffer_len;
-#else
-            int aqsize = is->audioq.size;
-#endif
-#if 1
         /* if the queue are full, no need to read more */
-        if (   aqsize + is->videoq.size + is->subtitleq.size > MAX_QUEUE_SIZE
+        if ((   aqsize + is->videoq.size + is->subtitleq.size > MAX_QUEUE_SIZE
             || (   (            aqsize  > MIN_AUDIOQ_SIZE || is->audio_stream<0)
                 && (is->videoq   .nb_packets > MIN_FRAMES || is->video_stream<0)
-                && (is->subtitleq.nb_packets > MIN_FRAMES || is->subtitle_stream<0))) {
+                && (is->subtitleq.nb_packets > MIN_FRAMES || is->subtitle_stream<0))) && !is->slotinfo->pausereq) {
             /* wait 10 ms */
-//av_log(NULL, AV_LOG_DEBUG,"sleep 2 --------------\n");
             st=xplayer_clock();
             usleep(10000);
             et=xplayer_clock();
             wtime+=et-st;
             continue;
         }
-#endif
         if(eof) {
             if(is->video_stream >= 0){
                 av_init_packet(pkt);
@@ -6091,9 +5897,6 @@ static void* read_thread(void *arg)
                 pkt->data = NULL;
                 pkt->size = 0;
                 pkt->stream_index = is->audio_stream;
-#ifndef USE_AUDIO_DECODE_NEW
-                packet_queue_put(is, &is->audioq, pkt);
-#endif
             }
             st=xplayer_clock();
             usleep(10000);
@@ -6102,7 +5905,8 @@ static void* read_thread(void *arg)
             if(aqsize + is->videoq.size + is->subtitleq.size ==0){
                 if(is->slotinfo->loop!=1 && (!is->slotinfo->loop || --is->slotinfo->loop)){
                     is->audio_clock = 0.0;
-                    is->audio_clock_diff = 0.0;
+                    is->audio_clock_diff_len=0;
+                    is->audio_diff=0;
 
                     stream_seek(is, is->slotinfo->start_time != AV_NOPTS_VALUE ? is->slotinfo->start_time : 0, 0, 0);
                 }else if(is->slotinfo->autoexit){
@@ -6113,12 +5917,10 @@ static void* read_thread(void *arg)
             eof=0;
             continue;
         }
-//av_log(NULL, AV_LOG_DEBUG,"*********** read stream: %d pass3 '%s' \n",is->slotinfo->slotid,is->filename);
         st=xplayer_clock();
         ret = av_read_frame(ic, pkt);
         et=xplayer_clock();
         wtime+=et-st;
-//av_log(NULL, AV_LOG_DEBUG,"*********** read stream: %d pass4 '%s' ret: %d eof: %d\n",is->slotinfo->slotid,is->filename,ret,eof);
         double pktpts = -1.0;
         if(pkt->pts!=AV_NOPTS_VALUE)
         {
@@ -6143,13 +5945,11 @@ static void* read_thread(void *arg)
                 eof=1;
             if (ic->pb && ic->pb->error)
                 break;
-//            av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): read stream eof 2 ?: %d ret: %d %x AVEOF: %d feof: %d %d eof: %d clearpause: %d\n",is->slotinfo->slotid,ret,-ret,AVERROR_EOF,url_feof(ic->pb),(ret == AVERROR_EOF),eof,clearpause);
             if(clearpause && eof) {
                 av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): read stream eof?: %d ret: %d %x AVEOF: %d feof: %d\n",is->slotinfo->slotid,ret,-ret,AVERROR_EOF,url_feof(ic->pb));
                 is->slotinfo->reopen=1;
                 break;
             }
-//av_log(NULL, AV_LOG_DEBUG,"sleep 3 --------------\n");
             st=xplayer_clock();
             usleep(100000);/* wait for user event */
             et=xplayer_clock();
@@ -6167,14 +5967,8 @@ static void* read_thread(void *arg)
                 (double)(is->slotinfo->start_time != AV_NOPTS_VALUE ? is->slotinfo->start_time : 0)/1000000
                 <= ((double)is->slotinfo->duration/1000000);
         if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {
-//av_log(NULL, AV_LOG_DEBUG,"Audio: %12.6f\n",pktpts);
-#ifdef USE_AUDIO_DECODE_NEW
-            audio_decode_frame2(is, pkt);
-#else
-            packet_queue_put(is, &is->audioq, pkt);
-#endif
+            audio_decode_frame(is, pkt);
         } else if (pkt->stream_index == is->video_stream && pkt_in_play_range) {
-//av_log(NULL, AV_LOG_DEBUG,"Video: %12.6f\n",pktpts);
             packet_queue_put(is, &is->videoq, pkt);
         } else if (pkt->stream_index == is->subtitle_stream && pkt_in_play_range) {
             packet_queue_put(is, &is->subtitleq, pkt);
@@ -6302,6 +6096,7 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
     return is;
 }
 
+#if 0
 static void stream_cycle_channel(VideoState *is, int codec_type)
 {
     AVFormatContext *ic = is->ic;
@@ -6350,7 +6145,7 @@ static void stream_cycle_channel(VideoState *is, int codec_type)
     stream_component_close(is, start_index);
     stream_component_open(is, stream_index);
 }
-
+#endif
 
 static void toggle_pause(VideoState *is)
 {
@@ -6365,163 +6160,6 @@ static void step_to_next_frame(VideoState *is)
         stream_toggle_pause(is);
     is->step = 1;
 }
-
-
-#if 0
-/* handle an event sent by the GUI */
-static void event_loop(VideoState *cur_stream)
-{
-    SDL_Event event;
-    double incr, pos, frac;
-
-    for(;;) {
-        double x;
-        SDL_WaitEvent(&event);
-        switch(event.type) {
-        case SDL_KEYDOWN:
-            if (exit_on_keydown) {
-                do_exit(cur_stream);
-                break;
-            }
-            switch(event.key.keysym.sym) {
-            case SDLK_ESCAPE:
-            case SDLK_q:
-                do_exit(cur_stream);
-                break;
-            case SDLK_f:
-                toggle_full_screen(cur_stream);
-                break;
-            case SDLK_p:
-            case SDLK_SPACE:
-                toggle_pause(cur_stream);
-                break;
-            case SDLK_s: //S: Step to next frame
-                step_to_next_frame(cur_stream);
-                break;
-            case SDLK_a:
-                stream_cycle_channel(cur_stream, AVMEDIA_TYPE_AUDIO);
-                break;
-            case SDLK_v:
-                stream_cycle_channel(cur_stream, AVMEDIA_TYPE_VIDEO);
-                break;
-            case SDLK_t:
-                stream_cycle_channel(cur_stream, AVMEDIA_TYPE_SUBTITLE);
-                break;
-            case SDLK_w:
-                toggle_audio_display(cur_stream);
-                break;
-            case SDLK_LEFT:
-                incr = -10.0;
-                goto do_seek;
-            case SDLK_RIGHT:
-                incr = 10.0;
-                goto do_seek;
-            case SDLK_UP:
-                incr = 60.0;
-                goto do_seek;
-            case SDLK_DOWN:
-                incr = -60.0;
-            do_seek:
-                if (is->seek_by_bytes) {
-                    if (cur_stream->video_stream >= 0 && cur_stream->video_current_pos>=0){
-                        pos= cur_stream->video_current_pos;
-                    }else if(cur_stream->audio_stream >= 0 && cur_stream->audio_pkt.pos>=0){
-                        pos= cur_stream->audio_pkt.pos;
-                    }else
-                        pos = avio_tell(cur_stream->ic->pb);
-                    if (cur_stream->ic->bit_rate)
-                        incr *= cur_stream->ic->bit_rate / 8.0;
-                    else
-                        incr *= 180000.0;
-                    pos += incr;
-
-                    is->audio_clock = 0.0;
-                    is->audio_clock_diff = 0.0;
-
-                    stream_seek(cur_stream, pos, incr, 1);
-                } else {
-                    pos = get_master_clock(cur_stream);
-                    pos += incr;
-
-                    is->audio_clock = 0.0;
-                    is->audio_clock_diff = 0.0;
-
-                    stream_seek(cur_stream, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE), 0);
-                }
-                break;
-            default:
-                break;
-            }
-            break;
-        case SDL_MOUSEBUTTONDOWN:
-            if (exit_on_mousedown) {
-                do_exit(cur_stream);
-                break;
-            }
-        case SDL_MOUSEMOTION:
-            if(event.type ==SDL_MOUSEBUTTONDOWN){
-                x= event.button.x;
-            }else{
-                if(event.motion.state != SDL_PRESSED)
-                    break;
-                x= event.motion.x;
-            }
-            if(is->seek_by_bytes || cur_stream->ic->duration<=0){
-                uint64_t size=  avio_size(cur_stream->ic->pb);
-
-                is->audio_clock = 0.0;
-                is->audio_clock_diff = 0.0;
-
-                stream_seek(cur_stream, size*x/cur_stream->width, 0, 1);
-            }else{
-                int64_t ts;
-                int ns, hh, mm, ss;
-                int tns, thh, tmm, tss;
-                tns = cur_stream->ic->duration/1000000LL;
-                thh = tns/3600;
-                tmm = (tns%3600)/60;
-                tss = (tns%60);
-                frac = x/cur_stream->width;
-                ns = frac*tns;
-                hh = ns/3600;
-                mm = (ns%3600)/60;
-                ss = (ns%60);
-                av_log(NULL, AV_LOG_DEBUG, "Seek to %2.0f%% (%2d:%02d:%02d) of total duration (%2d:%02d:%02d)       \n", frac*100,
-                        hh, mm, ss, thh, tmm, tss);
-                ts = frac*cur_stream->ic->duration;
-                if (cur_stream->ic->start_time != AV_NOPTS_VALUE)
-                    ts += cur_stream->ic->start_time;
-
-                is->audio_clock = 0.0;
-                is->audio_clock_diff = 0.0;
-
-                stream_seek(cur_stream, ts, 0, 0);
-            }
-            break;
-        case SDL_VIDEORESIZE:
-            screen = SDL_SetVideoMode(event.resize.w, event.resize.h, 0,
-                                      SDL_HWSURFACE|SDL_RESIZABLE|SDL_ASYNCBLIT|SDL_HWACCEL);
-            screen_width = cur_stream->width = event.resize.w;
-            screen_height= cur_stream->height= event.resize.h;
-            break;
-        case SDL_QUIT:
-        case FF_QUIT_EVENT:
-            do_exit(cur_stream);
-            break;
-        case FF_ALLOC_EVENT:
-            video_open(event.user.data1);
-            alloc_picture(event.user.data1);
-            break;
-        case FF_REFRESH_EVENT:
-            video_refresh(event.user.data1);
-            cur_stream->refresh=0;
-            break;
-        default:
-            break;
-        }
-    }
-}
-#endif
 
 static void event_loop(slotinfo_t* slotinfo)
 {
@@ -6606,7 +6244,8 @@ static void event_loop(slotinfo_t* slotinfo)
                 packet_queue_flush(is, &is->videoq);
                 packet_queue_put(is, &is->videoq, &is->flush_pkt);
             }
-            is->audio_clock_diff=0.0;
+            is->audio_clock_diff_len=0;
+            is->audio_diff=0;
             is->read_enable=read_enable;
             break;
         case SEEK_EVENT:
@@ -6617,7 +6256,8 @@ static void event_loop(slotinfo_t* slotinfo)
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): seek: %12.6f %lld\n",pos,(int64_t)(pos * AV_TIME_BASE));
 
             is->audio_clock = 0.0;
-            is->audio_clock_diff = 0.0;
+            is->audio_clock_diff_len = 0;
+            is->audio_diff=0;
 #ifndef USES_PAUSESEEK
             if (is->paused) {
                 is->pause_seek = 1;
@@ -6636,11 +6276,11 @@ static void event_loop(slotinfo_t* slotinfo)
             if(pos>is->slotinfo->length)
                 pos=is->slotinfo->length;
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: seek rel: %12.6f (pause: %d)\n",is->slotinfo->slotid,get_master_clock(is),pos,is->paused);
-//            pos = get_master_clock(is);
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): seek: %12.6f %lld\n",pos,(int64_t)(pos * AV_TIME_BASE));
 
             is->audio_clock = 0.0;
-            is->audio_clock_diff = 0.0;
+            is->audio_clock_diff_len = 0;
+            is->audio_diff=0;
 
 #ifndef USES_PAUSESEEK
             if (is->paused) {
@@ -6658,20 +6298,6 @@ static void event_loop(slotinfo_t* slotinfo)
         free(event);
     }
 }
-
-/*
-static int opt_seek(const char *opt, const char *arg)
-{
-    start_time = parse_time_or_die(opt, arg, 1);
-    return 0;
-}
-
-static int opt_duration(const char *opt, const char *arg)
-{
-    duration = parse_time_or_die(opt, arg, 1);
-    return 0;
-}
-*/
 
 /* Called from the main */
 static void *player_process(void *data)
@@ -6727,7 +6353,6 @@ static void *player_process(void *data)
         } else {
             usleep(40000);
         }
-//av_log(NULL, AV_LOG_DEBUG,"player process: %d\n",slotinfo->slotid);
         if(slotinfo->doneflag)
             break;
     }

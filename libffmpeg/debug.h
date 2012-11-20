@@ -29,6 +29,7 @@ typedef struct {
     int audio_proc;
     int audio_slot;
     int pass;
+    int paused;
     unsigned int mpi_alloc;
     unsigned int mpi_free;
     unsigned int vdaframes_pop;
@@ -43,9 +44,11 @@ typedef struct {
     int uses;
     int slotid;
     double master_clock;
+    double real_clock;
     double av_diff;
     double audio_diff;
     double audio_real_diff;
+    double audio_clock;
     int framedrop;
     int aqsize;
     int vqsize;
@@ -54,6 +57,7 @@ typedef struct {
     long long int f2;
     double vqtime;
     double aqtime;
+    int pausereq;
     unsigned int video_proc;
     unsigned int audio_proc;
     unsigned int read_proc;

@@ -85,6 +85,7 @@ struct slotinfo_st {
     int                 setmute;
     int                 doneflag;
     int                 pauseafterload;
+    int                 pausereq;
 
     int                 w;
     int                 h;
@@ -186,6 +187,8 @@ typedef struct {
 
     pthread_mutex_t     audiomutex;
     pthread_t           thread;
+    pthread_mutex_t     pausemutex;
+    int                 paused;
 } xplayer_global_status_t;
 
 typedef struct {

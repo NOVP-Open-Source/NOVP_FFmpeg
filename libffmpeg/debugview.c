@@ -21,7 +21,11 @@ int async_quit_request = 0;
 
 typedef struct {
     unsigned char page;
+    unsigned char pause;
     int long_disp;
+    int read_disp;
+    int count_disp;
+    int ffmpeg_disp;
     int mess_disp;
     int call_disp;
     int plugin_disp;
@@ -209,12 +213,12 @@ static void pad(int n) {
         printf(" ");
 }
 
-static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double playtime)
+static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double mastertime, double playtime)
 {
     if(!slotdebug) {
-        if(debugview->long_disp) {
+        if(debugview->long_disp || debugview->read_disp) {
             debugview->line++;
-            printf("Diff:     %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f) %7.2f %7.2f  %c[K\n",
+            printf("Diff:     %7.2f                            (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f) %7.2f %7.2f  %c[K\n",
                     debugview->max_mc-debugview->min_mc,
                     debugview->max_ac-debugview->min_ac,
                     debugview->max_vc-debugview->min_vc,
@@ -228,15 +232,18 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double p
         return;
     }
     if(debugview->long_disp) {
-        printf("Slot: %3d %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) A-V:%7.3f PT: %8.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d AB: %12lld  %c[K\n",
-                slotdebug->slotid,
-                slotdebug->master_clock,
-                slotdebug->acpts,
-                slotdebug->vcpts,
-                slotdebug->vreadpts,
-                slotdebug->areadpts,
-                slotdebug->audio_real_diff,
-                slotdebug->ablen,
+        printf("Slot: %3d %7.2f %7.2f [%8.3f] %7.2f (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) A-V:%7.3f PT: %8.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d AB: %12lld  %c[K\n",
+                slotdebug->slotid,                      // %3d
+                slotdebug->master_clock,                // %7.2f
+                slotdebug->real_clock,                  // %7.2f
+                slotdebug->master_clock-mastertime,     // [%8.3f]
+                slotdebug->audio_clock,                 // %7.2f
+                slotdebug->acpts,                       // AC
+                slotdebug->vcpts,                       // VC
+                slotdebug->vreadpts,                    // V
+                slotdebug->areadpts,                    // A
+                slotdebug->audio_real_diff,             // RA
+                slotdebug->ablen,                       // AL
                 slotdebug->av_diff,
                 slotdebug->playtime-playtime,
                 slotdebug->audio_diff,
@@ -259,27 +266,58 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double p
                 ESC
                );
     } else {
-        printf("Slot: %3d %7.2f A-V:%7.3f PT: %8.3f AE: %7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld QV: %7.3f QA: %7.3f V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d %c[K\n",
-                slotdebug->slotid,
-                slotdebug->master_clock,
+        printf("Slot: %3d %7.2f %7.2f [%8.3f] %7.2f PQ: %d",
+                slotdebug->slotid,                      // %3d
+                slotdebug->master_clock,                // %7.2f
+//                slotdebug->real_clock,                  // %7.2f
+                slotdebug->master_clock-slotdebug->real_clock,                  // %7.2f
+                mastertime-slotdebug->master_clock,     // [%8.3f]
+//                slotdebug->audio_clock,                 // %7.2f
+                (mastertime-slotdebug->master_clock)-(slotdebug->playtime-playtime),     // %7.2f
+                slotdebug->pausereq
+               );
+        if(debugview->read_disp) {
+            printf("(AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) ",
+                    slotdebug->acpts,                       // AC
+                    slotdebug->vcpts,                       // VC
+                    slotdebug->vreadpts,                    // V
+                    slotdebug->areadpts,                    // A
+                    slotdebug->audio_real_diff,             // RA
+                    slotdebug->ablen                        // AL
+                   );
+        }
+        printf("A-V:%7.3f PT: %8.3f AE: %7.3f ",
                 slotdebug->av_diff,
                 slotdebug->playtime-playtime,
-                slotdebug->audio_diff,
-                slotdebug->framedrop,
-                slotdebug->aqsize,
-                slotdebug->vqsize,
-                slotdebug->sqsize,
-                slotdebug->f1,
-                slotdebug->f2,
+                slotdebug->audio_diff
+               );
+        if(debugview->ffmpeg_disp) {
+            printf("fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld ",
+                    slotdebug->framedrop,
+                    slotdebug->aqsize,
+                    slotdebug->vqsize,
+                    slotdebug->sqsize,
+                    slotdebug->f1,
+                    slotdebug->f2
+                   );
+        }
+        printf("QV: %7.3f QA: %7.3f ",
                 slotdebug->vqtime,
-                slotdebug->aqtime,
-                slotdebug->video_proc % 1000,
-                slotdebug->audio_proc % 1000,
-                slotdebug->read_proc % 1000,
-                slotdebug->plugin_proc % 1000,
-                slotdebug->silence,
-                slotdebug->display_proc % 1000,
-                slotdebug->apicall,
+                slotdebug->aqtime
+               );
+        if(debugview->count_disp) {
+            printf("V:%3d A:%3d R:%3d P:%3d S: %3d D: %3d API: %3d AB: %12lld ",
+                    slotdebug->video_proc % 1000,
+                    slotdebug->audio_proc % 1000,
+                    slotdebug->read_proc % 1000,
+                    slotdebug->plugin_proc % 1000,
+                    slotdebug->silence,
+                    slotdebug->display_proc % 1000,
+                    slotdebug->apicall,
+                    slotdebug->abytes
+                   );
+        }
+        printf(" %c[K\n",
                 ESC
                );
         }
@@ -526,6 +564,15 @@ static void thread_disp(slotdebug_t* slotdebug, debugview_t* debugview)
     }
 }
 
+void help_info(debugview_t* debugview)
+{
+    printf("%s %c[K\n",
+            "next page: <n>, prev page: <r>, pause: <p>, exit: <enter>",
+            ESC
+            );
+    debugview->line++;
+}
+
 int main(int argc, char** argv)
 {
     void* debug = NULL;
@@ -536,13 +583,25 @@ int main(int argc, char** argv)
     struct timeval tv;
     char termbuf[64];
     double playtime;
+    double mastertime;
     int r = 0;
     int lastline = 0;
     int i;
 
     for(i=1;i<argc;i++) {
+        if(!strcmp(argv[i],"-d")) {
+            debugview->read_disp=1;
+            debugview->count_disp=1;
+            debugview->ffmpeg_disp=1;
+        }
         if(!strcmp(argv[i],"-l"))
             debugview->long_disp=1;
+        if(!strcmp(argv[i],"-r"))
+            debugview->read_disp=1;
+        if(!strcmp(argv[i],"-n"))
+            debugview->count_disp=1;
+        if(!strcmp(argv[i],"-f"))
+            debugview->ffmpeg_disp=1;
         if(!strcmp(argv[i],"-m"))
             debugview->mess_disp=1;
         if(!strcmp(argv[i],"-c"))
@@ -551,6 +610,20 @@ int main(int argc, char** argv)
             debugview->plugin_disp=1;
         if(!strcmp(argv[i],"-t"))
             debugview->thread_disp=1;
+        if(!strcmp(argv[i],"-h")) {
+            fprintf(stderr,"Usage: %s [-l][-r][-n][-f][-m][-c][-p][-t][-h]\n",argv[0]);
+            fprintf(stderr,"\t-d: default info (read, count and ffmpeg)\n");
+            fprintf(stderr,"\t-r: read info\n");
+            fprintf(stderr,"\t-n: count info\n");
+            fprintf(stderr,"\t-f: ffmpeg info\n");
+            fprintf(stderr,"\t-l: long info\n");
+            fprintf(stderr,"\t-m: messages\n");
+            fprintf(stderr,"\t-c: call page\n");
+            fprintf(stderr,"\t-p: plugin page\n");
+            fprintf(stderr,"\t-t: thread page\n");
+            fprintf(stderr,"\t-h: this list\n");
+            return 0;
+        }
     }
     if(!(debug=debugmem_open(0))) {
         fprintf(stderr,"Can't open debug shared mem.\n");
@@ -573,60 +646,68 @@ int main(int argc, char** argv)
         fflush(stdout);
         double load = 0.0;
         playtime=0.0;
+        mastertime=0.0;
         for(i=0;i<MAX_DEBUG_SLOT;i++) {
             if(!slotdebug[i].uses)
                 continue;
             if(slotdebug[i].playtime==0.0)
                 continue;
-            if(playtime==0.0)
+            if(playtime==0.0) {
+                mastertime=slotdebug[i].master_clock;
                 playtime=slotdebug[i].playtime;
-            if(playtime>slotdebug[i].playtime)
+            }
+            if(playtime>slotdebug[i].playtime) {
+                mastertime=slotdebug[i].master_clock;
                 playtime=slotdebug[i].playtime;
+            }
         }
-        if(maindebug->thread_time.proc>0.0 && maindebug->thread_time.run>0.0)
-            load=maindebug->thread_time.proc/maindebug->thread_time.run;
-            printf("Debug view v0.1 Audio: %3d Slot: %3d pass: %d proc: %5.1f run: %5.1f load: %4.1f%% master buffer: %12ld mpi: %d %d => %d vda frames: %d %d => %d %c[K\n\n",
-                maindebug->audio_proc % 1000,maindebug->audio_slot,maindebug->pass,
-                maindebug->thread_time.proc,maindebug->thread_time.run,load*100.0,
-                maindebug->audio_buffer,
-                maindebug->mpi_alloc,maindebug->mpi_free,maindebug->mpi_alloc-maindebug->mpi_free,
-                maindebug->vdaframes_pop,maindebug->vdaframes_release,maindebug->vdaframes_pop-maindebug->vdaframes_release,
-                ESC);
-        if(debugview->call_disp) {
-            call_header(debugview);
-        } else if(debugview->plugin_disp) {
-            plugin_header(debugview);
-        } else if(debugview->thread_disp) {
-            thread_header(debugview);
-        }
-        for(i=0;i<MAX_DEBUG_SLOT;i++) {
-            if(!slotdebug[i].uses)
-                continue;
+        if(!debugview->pause) {
+            if(maindebug->thread_time.proc>0.0 && maindebug->thread_time.run>0.0)
+                load=maindebug->thread_time.proc/maindebug->thread_time.run;
+                printf("Debug view v0.1 Audio: %3d Slot: %3d pass: %d pause: %d proc: %5.1f run: %5.1f load: %4.1f%% master buffer: %12ld mpi: %d %d => %d vda frames: %d %d => %d %c[K\n\n",
+                    maindebug->audio_proc % 1000,maindebug->audio_slot,maindebug->pass,
+                    maindebug->paused,
+                    maindebug->thread_time.proc,maindebug->thread_time.run,load*100.0,
+                    maindebug->audio_buffer,
+                    maindebug->mpi_alloc,maindebug->mpi_free,maindebug->mpi_alloc-maindebug->mpi_free,
+                    maindebug->vdaframes_pop,maindebug->vdaframes_release,maindebug->vdaframes_pop-maindebug->vdaframes_release,
+                    ESC);
             if(debugview->call_disp) {
-                call_disp(&slotdebug[i], debugview);
+                call_header(debugview);
             } else if(debugview->plugin_disp) {
-                plugin_disp(&slotdebug[i], debugview);
+                plugin_header(debugview);
             } else if(debugview->thread_disp) {
-                thread_disp(&slotdebug[i], debugview);
+                thread_header(debugview);
+            }
+            for(i=0;i<MAX_DEBUG_SLOT;i++) {
+                if(!slotdebug[i].uses)
+                    continue;
+                if(debugview->call_disp) {
+                    call_disp(&slotdebug[i], debugview);
+                } else if(debugview->plugin_disp) {
+                    plugin_disp(&slotdebug[i], debugview);
+                } else if(debugview->thread_disp) {
+                    thread_disp(&slotdebug[i], debugview);
+                } else {
+                    status_disp(&slotdebug[i], debugview, mastertime, playtime);
+                }
+            }
+
+            if(debugview->call_disp) {
+                call_disp(NULL, debugview);
+            } else if(debugview->plugin_disp) {
+                plugin_disp(NULL, debugview);
+            } else if(debugview->thread_disp) {
+                thread_disp(NULL, debugview);
             } else {
-                status_disp(&slotdebug[i], debugview, playtime);
+                status_disp(NULL, debugview, mastertime, playtime);
+            }
+            help_info(debugview);
+            for(i=debugview->line;i<lastline;i++) {
+                printf("%c[K\n",ESC);
             }
         }
 
-        if(debugview->call_disp) {
-            call_disp(NULL, debugview);
-        } else if(debugview->plugin_disp) {
-            plugin_disp(NULL, debugview);
-        } else if(debugview->thread_disp) {
-            thread_disp(NULL, debugview);
-        } else {
-            status_disp(NULL, debugview, playtime);
-        }
-
-
-        for(i=debugview->line;i<lastline;i++) {
-            printf("%c[K\n",ESC);
-        }
         fflush(stdout);
         lastline=debugview->line;
 
@@ -650,6 +731,8 @@ int main(int argc, char** argv)
                         memset(slotdebug[i].plugincount,0,sizeof(unsigned int)*MAX_DEBUG_APINUM);
                     }
                 }
+                if(strchr(termbuf,'p'))
+                    debugview->pause=1-debugview->pause;
             }
         }
     }
