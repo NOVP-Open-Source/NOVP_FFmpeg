@@ -115,6 +115,39 @@ bool MediaPlayer::setloglevel(int logLevel)
     return true;
 }
 
+int MediaPlayer::getgroup()
+{
+    return xplayer_API_getgroup(slotId);
+}
+
+void MediaPlayer::setgroup(int group)
+{
+    xplayer_API_setgroup(slotId, group);
+}
+
+void MediaPlayer::settimeshift(double time)
+{
+    xplayer_API_settimeshift(slotId, time);
+}
+
+bool MediaPlayer::groupplay()
+{
+    xplayer_API_groupplay(slotId);
+    return true;
+}
+
+bool MediaPlayer::groupstop()
+{
+    xplayer_API_groupstop(slotId);
+    return true;
+}
+
+bool MediaPlayer::groupseekpos(const double pos)
+{
+    xplayer_API_groupseekpos(slotId, pos);
+    return false;
+}
+
 const std::string& MediaPlayer::version() const
 {
     return m_version;

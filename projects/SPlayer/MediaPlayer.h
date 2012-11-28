@@ -45,6 +45,9 @@ public:
     bool open(const std::string&);
     bool close();
     bool play();
+    bool groupplay();
+    bool groupstop();
+    bool groupseekpos(double pos);
     bool stop();
     bool flush();
     bool seek(double percent);
@@ -68,6 +71,10 @@ public:
     bool setOptions(const std::string&, const std::string&);
     char* getstatusline();
     bool setloglevel(int logLevel);
+
+    int getgroup();
+    void setgroup(int group);
+    void settimeshift(double time);
 
     void setWindow(FB::PluginWindow*);
 

@@ -259,6 +259,24 @@ bool MediaPlayer::play(const std::string& file_)
     return true;
 }
 
+bool MediaPlayer::groupplay()
+{
+    xplayer_API_groupplay(slotId);
+    return true;
+}
+
+bool MediaPlayer::groupstop()
+{
+    xplayer_API_groupstop(slotId);
+    return true;
+}
+
+bool MediaPlayer::groupseekpos(const double pos)
+{
+    xplayer_API_groupseekpos(slotId, pos);
+    return false;
+}
+
 bool MediaPlayer::pause()
 {
 	if(m_context && m_context->pDataArray)
@@ -400,6 +418,21 @@ bool MediaPlayer::flush()
 {
     xplayer_API_flush(slotId);
     return false;
+}
+
+int MediaPlayer::getgroup()
+{
+    return xplayer_API_getgroup(slotId);
+}
+
+void MediaPlayer::setgroup(int group)
+{
+    xplayer_API_setgroup(slotId, group);
+}
+
+void MediaPlayer::settimeshift(double time)
+{
+    xplayer_API_settimeshift(slotId, time);
 }
 
 DWORD WINAPI MyThreadFunction( LPVOID lpParam )

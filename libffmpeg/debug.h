@@ -29,7 +29,6 @@ typedef struct {
     int audio_proc;
     int audio_slot;
     int pass;
-    int paused;
     unsigned int mpi_alloc;
     unsigned int mpi_free;
     unsigned int vdaframes_pop;
@@ -76,6 +75,16 @@ typedef struct {
     unsigned int proccount[MAX_DEBUG_APINUM];
     unsigned int plugincount[MAX_DEBUG_PLUGINNUM];
     thread_times_t thread_time[MAX_DEBUG_THREADS];
+
+    int groupid;
+    double group_clock;
+    double timeshift;
+    int group_paused;
+
+    double readpts;
+    int readno;
+    int readpass;
+    double speed;
 } slotdebug_t;
 
 void*           debugmem_open(int id);

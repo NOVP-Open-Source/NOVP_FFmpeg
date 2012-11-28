@@ -79,6 +79,13 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
     registerMethod  ("audiodisable",            make_method  (this, &SPlayer::audiodisable));
     registerMethod  ("getstatusline",           make_method  (this, &SPlayer::getstatusline));
 
+    registerMethod  ("SetGroupId",              make_method  (this, &SPlayer::SetGroupId));
+    registerMethod  ("GetGroupId",              make_method  (this, &SPlayer::GetGroupId));
+    registerMethod  ("SetTimeShift",            make_method  (this, &SPlayer::SetTimeShift));
+    registerMethod  ("GroupPlay",               make_method  (this, &SPlayer::GroupPlay));
+    registerMethod  ("GroupStop",               make_method  (this, &SPlayer::GroupStop));
+    registerMethod  ("GroupSetTime",            make_method  (this, &SPlayer::GroupSetTime));
+
 /// Compatible functions to QuickTime plugin:
     registerMethod  ("GetPluginStatus",         make_method  (this, &SPlayer::GetPluginStatus));
     registerMethod  ("Play",                    make_method  (this, &SPlayer::Play));
@@ -187,6 +194,16 @@ bool SPlayer::play(const FB::CatchAll& catchall)
 {
     plugincall(slotId, 1);
     return m_player->play();
+}
+
+bool SPlayer::GroupPlay()
+{
+    return m_player->groupplay();
+}
+
+bool SPlayer::GroupStop()
+{
+    return m_player->groupstop();
 }
 
 bool SPlayer::stop()
@@ -339,6 +356,34 @@ void SPlayer::setWindow(FB::PluginWindow* win)
             m_player->play();
         }
     }
+}
+
+int SPlayer::GetGroupId()
+{
+    return m_player->getgroup();
+}
+
+void SPlayer::SetGroupId(const FB::variant& group)
+{
+    int g = group.convert_cast<int>();
+    m_player->setgroup(g);
+}
+
+void SPlayer::SetTimeShift(const FB::variant& time)
+{
+    int t = time.convert_cast<double>();
+    m_player->settimeshift(t);
+}
+
+bool SPlayer::GroupSetTime(const FB::variant& arg)
+{
+    int timepos = arg.convert_cast<int>();
+    if (timepos < 0) {
+        return false;
+    }
+    double pos = (double)timepos / (double)GetTimeScale();
+    m_player->groupseekpos(pos);
+    return true;
 }
 
 /// *******************************************************************

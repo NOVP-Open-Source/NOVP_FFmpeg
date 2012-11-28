@@ -57,6 +57,13 @@ public:
     void setloglevel(const FB::variant& arg);
     int getloglevel();
 
+    int GetGroupId();
+    void SetGroupId(const FB::variant&);
+    void SetTimeShift(const FB::variant&);
+    bool GroupPlay();
+    bool GroupStop();
+    bool GroupSetTime(const FB::variant&);
+
 /// Compatible parameters to QuickTime plugin
     std::string GetID();
     void SetID(const std::string&);

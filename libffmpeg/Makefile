@@ -11,8 +11,7 @@ STATICLIBS= lib/libavformat.a lib/libavfilter.a lib/libavcodec.a lib/libswscale.
 FFLIBS=lib/libavdevice.a
 OBJECTS = $(addsuffix .o, $(TARGETS)) 
 AFILTER=af.o afilter/format.o afilter/af_channels.o afilter/af_format.o afilter/af_resample.o afilter/af_volume.o afilter/af_volnorm.o afilter/af_import.o afilter/filter.o afilter/window.o afilter/util.o
-OBJS = aclib.o fmt-conversion.o libxplayer.o $(AFILTER) eventqueue.o libffplayopts.o libffplay.o debug.o
-# wav.o
+OBJS = aclib.o fmt-conversion.o libxplayer.o $(AFILTER) eventqueue.o libffplayopts.o libffplay.o debug.o wav.o
 OBJFF=cmdutils.o
 OBJSHM=libshmem/libshmem.o
 

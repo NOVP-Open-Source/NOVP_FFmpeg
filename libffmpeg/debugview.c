@@ -28,11 +28,14 @@ typedef struct {
     int ffmpeg_disp;
     int mess_disp;
     int call_disp;
+    int group_disp;
     int plugin_disp;
     int thread_disp;
     int line;
     double min_mc;
     double max_mc;
+    double min_gc;
+    double max_gc;
     double min_ac;
     double max_ac;
     double min_vc;
@@ -218,8 +221,9 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
     if(!slotdebug) {
         if(debugview->long_disp || debugview->read_disp) {
             debugview->line++;
-            printf("Diff:     %7.2f                            (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f) %7.2f %7.2f  %c[K\n",
+            printf("Diff:     %7.2f %7.2f                            (AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f) %7.2f %7.2f  %c[K\n",
                     debugview->max_mc-debugview->min_mc,
+                    debugview->max_gc-debugview->min_gc,
                     debugview->max_ac-debugview->min_ac,
                     debugview->max_vc-debugview->min_vc,
                     debugview->max_v-debugview->min_v,
@@ -266,7 +270,8 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
                 ESC
                );
     } else {
-        printf("Slot: %3d %7.2f %7.2f [%8.3f] %7.2f PQ: %d",
+#if 0
+        printf("Slot: %3d %7.2f %7.2f [%8.3f] %7.2f PQ: %d ",
                 slotdebug->slotid,                      // %3d
                 slotdebug->master_clock,                // %7.2f
 //                slotdebug->real_clock,                  // %7.2f
@@ -276,6 +281,22 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
                 (mastertime-slotdebug->master_clock)-(slotdebug->playtime-playtime),     // %7.2f
                 slotdebug->pausereq
                );
+#else
+        printf("Slot: %3d %7.2f %7.2f [%8.3f] PQ: %d ",
+                slotdebug->slotid,                      // %3d
+                slotdebug->master_clock,                // %7.2f
+                slotdebug->master_clock+slotdebug->timeshift,                  // %7.2f
+                slotdebug->timeshift,     // [%8.3f]
+                slotdebug->pausereq
+               );
+#endif
+        if(debugview->group_disp) {
+            printf(" GI: %3d GP: %d SP: %4.2f",
+                slotdebug->groupid,
+                slotdebug->group_paused,
+                slotdebug->speed
+                );
+        }
         if(debugview->read_disp) {
             printf("(AC: %7.2f VC: %7.2f V: %7.2f A: %7.2f RA: %7.2f AL: %8d) ",
                     slotdebug->acpts,                       // AC
@@ -286,11 +307,19 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
                     slotdebug->ablen                        // AL
                    );
         }
+#if 1
         printf("A-V:%7.3f PT: %8.3f AE: %7.3f ",
                 slotdebug->av_diff,
                 slotdebug->playtime-playtime,
                 slotdebug->audio_diff
                );
+#else
+        printf("RT: %8.3f RN: %3d RP: %2d",
+                slotdebug->readpts,
+                slotdebug->readno % 1000,
+                slotdebug->readpass
+               );
+#endif
         if(debugview->ffmpeg_disp) {
             printf("fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld ",
                     slotdebug->framedrop,
@@ -326,6 +355,10 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
             debugview->min_mc=slotdebug->master_clock;
         if(slotdebug->master_clock>debugview->max_mc)
             debugview->max_mc=slotdebug->master_clock;
+        if(slotdebug->master_clock+slotdebug->timeshift<debugview->min_gc)
+            debugview->min_gc=slotdebug->master_clock+slotdebug->timeshift;
+        if(slotdebug->master_clock+slotdebug->timeshift>debugview->max_gc)
+            debugview->max_gc=slotdebug->master_clock+slotdebug->timeshift;
         if(slotdebug->acpts<debugview->min_ac)
             debugview->min_ac=slotdebug->acpts;
         if(slotdebug->acpts>debugview->max_ac)
@@ -348,6 +381,7 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
             debugview->max_ra=slotdebug->audio_real_diff;
     } else {
         debugview->min_mc=debugview->max_mc=slotdebug->master_clock;
+        debugview->min_gc=debugview->max_gc=slotdebug->master_clock+slotdebug->timeshift;
         debugview->min_ac=debugview->max_ac=slotdebug->acpts;
         debugview->min_vc=debugview->max_vc=slotdebug->vcpts;
         debugview->min_v=debugview->max_v=slotdebug->vreadpts;
@@ -584,7 +618,6 @@ int main(int argc, char** argv)
     char termbuf[64];
     double playtime;
     double mastertime;
-    int r = 0;
     int lastline = 0;
     int i;
 
@@ -604,6 +637,8 @@ int main(int argc, char** argv)
             debugview->ffmpeg_disp=1;
         if(!strcmp(argv[i],"-m"))
             debugview->mess_disp=1;
+        if(!strcmp(argv[i],"-g"))
+            debugview->group_disp=1;
         if(!strcmp(argv[i],"-c"))
             debugview->call_disp=1;
         if(!strcmp(argv[i],"-p"))
@@ -611,10 +646,11 @@ int main(int argc, char** argv)
         if(!strcmp(argv[i],"-t"))
             debugview->thread_disp=1;
         if(!strcmp(argv[i],"-h")) {
-            fprintf(stderr,"Usage: %s [-l][-r][-n][-f][-m][-c][-p][-t][-h]\n",argv[0]);
+            fprintf(stderr,"Usage: %s [-l][-r][-n][-g][-f][-m][-c][-p][-t][-h]\n",argv[0]);
             fprintf(stderr,"\t-d: default info (read, count and ffmpeg)\n");
             fprintf(stderr,"\t-r: read info\n");
             fprintf(stderr,"\t-n: count info\n");
+            fprintf(stderr,"\t-g: group info\n");
             fprintf(stderr,"\t-f: ffmpeg info\n");
             fprintf(stderr,"\t-l: long info\n");
             fprintf(stderr,"\t-m: messages\n");
@@ -664,9 +700,8 @@ int main(int argc, char** argv)
         if(!debugview->pause) {
             if(maindebug->thread_time.proc>0.0 && maindebug->thread_time.run>0.0)
                 load=maindebug->thread_time.proc/maindebug->thread_time.run;
-                printf("Debug view v0.1 Audio: %3d Slot: %3d pass: %d pause: %d proc: %5.1f run: %5.1f load: %4.1f%% master buffer: %12ld mpi: %d %d => %d vda frames: %d %d => %d %c[K\n\n",
+                printf("Debug view v0.1 Audio: %3d Slot: %3d pass: %d proc: %5.1f run: %5.1f load: %4.1f%% master buffer: %12ld mpi: %d %d => %d vda frames: %d %d => %d %c[K\n\n",
                     maindebug->audio_proc % 1000,maindebug->audio_slot,maindebug->pass,
-                    maindebug->paused,
                     maindebug->thread_time.proc,maindebug->thread_time.run,load*100.0,
                     maindebug->audio_buffer,
                     maindebug->mpi_alloc,maindebug->mpi_free,maindebug->mpi_alloc-maindebug->mpi_free,
@@ -718,7 +753,7 @@ int main(int argc, char** argv)
         if(0<=(select(STDIN_FILENO+1,&fds,NULL,NULL,&tv))) {
             if(FD_ISSET(STDIN_FILENO,&fds)) {
                 memset(termbuf,0,64);
-                r=read(STDIN_FILENO,termbuf,64);
+                read(STDIN_FILENO,termbuf,64);
                 if(strchr(termbuf,'\n'))
                     break;
                 if(strchr(termbuf,'n'))

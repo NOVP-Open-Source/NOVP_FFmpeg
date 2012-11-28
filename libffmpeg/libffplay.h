@@ -8,6 +8,7 @@
 #include "af.h"
 
 #define MAX_IMAGES              256
+#define MAX_GROUPS              512
 
 #define AUDIO_PREFILL           ((double)0.02)
 #define AUDIO_PRELOAD           ((double)0.02)
@@ -31,6 +32,9 @@
 #define SEEK_EVENT              1008
 #define SEEK_REL_EVENT          1009
 #define QUEUE_FLUSH_EVENT       1010
+#define GROUP_PAUSE_CLEAR_EVENT 1011
+#define GROUP_PAUSE_SET_EVENT   1012
+#define GROUP_SEEK_EVENT        1013
 
 #define INVALID_FRAME           0
 #define INVALID_DELAY           1
@@ -38,11 +42,12 @@
 
 #define STATUSLINE_SIZE         1024
 
-#define DEBUGFLAG_NO_STATUS     0x01
+#define DEBUGFLAG_STATUS        0x01
 #define DEBUGFLAG_READ          0x02
 #define DEBUGFLAG_AUDIO_DIFF    0x04
 #define DEBUGFLAG_AV            0x08
 #define DEBUGFLAG_DELAY         0x10
+#define DEBUGFLAG_GROUP         0x20
 
 #define DEFAULT_BUFFER_TIME     0.05
 enum {
@@ -67,6 +72,9 @@ struct slotinfo_st {
     char*               url;
     char*               currenturl;
 
+    int                 groupid;
+    double              grouptime;
+
     void*               eventqueue;
 
     int                 playflag;
@@ -86,6 +94,7 @@ struct slotinfo_st {
     int                 doneflag;
     int                 pauseafterload;
     int                 pausereq;
+    int                 pauseseekreq;
 
     int                 w;
     int                 h;
@@ -172,10 +181,19 @@ struct slotinfo_st {
     char                statusline[STATUSLINE_SIZE];
 };
 
+typedef struct {
+    int                 used;
+    double              master_clock;
+    int                 master_slot;
+    int                 paused;
+    int                 pausestatus;
+    pthread_mutex_t     pausemutex;
+} group_status_t;
 
 typedef struct {
     slotinfo_t*         slotinfo;
     slotinfo_t*         slotinfo_chache[SLOT_MAX_CACHE];
+    group_status_t      groups[MAX_GROUPS];
     pthread_mutex_t     mutex;
     void*               af;
     af_data_t*          audio;
@@ -184,11 +202,10 @@ typedef struct {
     double              audiobuffersize;
     double              itertime;
     int                 run;
+    int                 forcevolume;
 
     pthread_mutex_t     audiomutex;
     pthread_t           thread;
-    pthread_mutex_t     pausemutex;
-    int                 paused;
 } xplayer_global_status_t;
 
 typedef struct {

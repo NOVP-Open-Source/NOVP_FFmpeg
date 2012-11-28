@@ -378,6 +378,13 @@ void            xplayer_API_init(int log_level, const char* logfile);
 void            xplayer_API_done();
 void            xplayer_API_setlogfile(const char* logfile);
 
+void            xplayer_API_setgroup(int slot, int group);
+int             xplayer_API_getgroup(int slot);
+void            xplayer_API_settimeshift(int slot, double time);
+int             xplayer_API_groupplay(int slot);
+int             xplayer_API_groupstop(int slot);
+int             xplayer_API_groupseekpos(int slot, double pos);
+
 int             xplayer_API_setimage(int slot, int w, int h, unsigned int fmt);
 video_info_t*   xplayer_API_getvideoformat(int slot);
 audio_info_t*   xplayer_API_getaudioformat(int slot);
