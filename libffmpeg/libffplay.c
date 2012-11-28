@@ -3457,6 +3457,7 @@ static void group_toggle_pause(VideoState* is, int event)
                 sis->pause_seek=0;
                 sis->slotinfo->newimageflag&=2;
                 if(ispaused(sis)) {
+                    av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"Slot: %d group sync\n",sis->slotinfo->slotid);
                     sis->groupsync=1;
                 }
                 break;
@@ -6390,7 +6391,7 @@ static void* read_thread(void *arg)
         if (is->abort_request)
             break;
 
-        if(is->groupsync && (is->ic->duration==AV_NOPTS_VALUE || !strcmp(is->ic->iformat->name, "rtsp"))) {
+        if(is->groupsync && (is->ic->duration==AV_NOPTS_VALUE || strcmp(is->ic->iformat->name, "rtsp"))) {
             is->slotinfo->pauseseekreq=0;
             is->groupsync=0;
             if(is->paused) {
@@ -6430,6 +6431,7 @@ static void* read_thread(void *arg)
                     }
                 }
             } else if(is->paused) {
+fprintf(stderr,"toggle4\n");
                 toggle_pause(is);
             }
 #if 0
