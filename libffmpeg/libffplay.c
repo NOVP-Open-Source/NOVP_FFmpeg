@@ -26,7 +26,7 @@
 #define NOWAIT_ENDOF_SLOTPROCESS 1
 //#define DEBUG_AUDIOPROC 1
 #define USE_LOCKIMAGE 1
-#define USE_WAV_DUMP 1
+//#define USE_WAV_DUMP 1
 #define NOVOLUMECONTROL 1
 #define USE_AUDIOCORR_ZERO 0
 #define USE_AUDIOCORR_INETRNPOL 0
@@ -2492,6 +2492,7 @@ typedef struct VideoState {
 
     double speed;
     int speedrate;
+    unsigned long long int audiocorr;
 
 } VideoState;
 
@@ -5087,6 +5088,7 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
             audio_add_to_buffer(is, NULL, difflen);
 #else
             audio_add_to_buffer(is, NULL, difflen);
+            is->audiocorr+=difflen;
 #endif
             clock=difflen;
             l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
@@ -5098,6 +5100,7 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
         if(difflen<0) {
             pthread_mutex_lock(&is->audio_decode_buffer_mutex);
             difflen+=audio_get_from_buffer(is, NULL, -difflen);
+            is->audiocorr-=difflen;
             clock=-difflen;
             l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
             clock/=l;
@@ -5216,6 +5219,7 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
     if(difflen<0) {
         pthread_mutex_lock(&is->audio_decode_buffer_mutex);
         difflen+=audio_get_from_buffer(is, NULL, -difflen);
+        is->audiocorr-=difflen;
 //        is->audio_diff+=difflen;
         clock=-difflen;
         l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
@@ -5242,6 +5246,7 @@ static void audio_decode_flush(VideoState *is)
     is->audio_decode_buffer_clock=0.0;
     is->audio_decode_last_pts=0;
     is->audio_drop=0;
+    is->audiocorr=0;
     is->decode_audio_clock=0;
     av_log(NULL, AV_LOG_DEBUG,"[debug] audio_decode_flush(): slot: %d audio decode flush\n",is->slotinfo->slotid);
     pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
@@ -5566,10 +5571,13 @@ if(is->speed!=1.0 && adata) {
     }
 
 #ifdef USE_DEBUG_LIB
+    clock=is->audiocorr;
+    l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
+    clock/=l;
     if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
         slotdebug_t* slotdebugs = debugmem_getslot(dmem);
         if(slotdebugs) {
-            slotdebugs[is->slotinfo->slotid].audio_diff=0.0;
+            slotdebugs[is->slotinfo->slotid].audio_diff=clock;
             slotdebugs[is->slotinfo->slotid].abytes+=speedlen;
             slotdebugs[is->slotinfo->slotid].acpts=is->audio_current_pts;
             slotdebugs[is->slotinfo->slotid].audio_real_diff=spts-rpts;

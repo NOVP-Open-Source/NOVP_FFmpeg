@@ -29,6 +29,7 @@ typedef struct {
     int mess_disp;
     int call_disp;
     int group_disp;
+    int readproc_disp;
     int plugin_disp;
     int thread_disp;
     int line;
@@ -291,7 +292,7 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
                );
 #endif
         if(debugview->group_disp) {
-            printf(" GI: %3d GP: %d SP: %4.2f",
+            printf(" GI: %3d GP: %d SP: %4.2f ",
                 slotdebug->groupid,
                 slotdebug->group_paused,
                 slotdebug->speed
@@ -307,19 +308,18 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
                     slotdebug->ablen                        // AL
                    );
         }
-#if 1
         printf("A-V:%7.3f PT: %8.3f AE: %7.3f ",
                 slotdebug->av_diff,
                 slotdebug->playtime-playtime,
                 slotdebug->audio_diff
                );
-#else
-        printf("RT: %8.3f RN: %3d RP: %2d",
-                slotdebug->readpts,
-                slotdebug->readno % 1000,
-                slotdebug->readpass
-               );
-#endif
+        if(debugview->readproc_disp) {
+            printf("RT: %8.3f RN: %3d RP: %2d ",
+                    slotdebug->readpts,
+                    slotdebug->readno % 1000,
+                    slotdebug->readpass
+                    );
+        }
         if(debugview->ffmpeg_disp) {
             printf("fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%lld/%lld ",
                     slotdebug->framedrop,
@@ -631,6 +631,8 @@ int main(int argc, char** argv)
             debugview->long_disp=1;
         if(!strcmp(argv[i],"-r"))
             debugview->read_disp=1;
+        if(!strcmp(argv[i],"-rp"))
+            debugview->readproc_disp=1;
         if(!strcmp(argv[i],"-n"))
             debugview->count_disp=1;
         if(!strcmp(argv[i],"-f"))
@@ -646,18 +648,19 @@ int main(int argc, char** argv)
         if(!strcmp(argv[i],"-t"))
             debugview->thread_disp=1;
         if(!strcmp(argv[i],"-h")) {
-            fprintf(stderr,"Usage: %s [-l][-r][-n][-g][-f][-m][-c][-p][-t][-h]\n",argv[0]);
-            fprintf(stderr,"\t-d: default info (read, count and ffmpeg)\n");
-            fprintf(stderr,"\t-r: read info\n");
-            fprintf(stderr,"\t-n: count info\n");
-            fprintf(stderr,"\t-g: group info\n");
-            fprintf(stderr,"\t-f: ffmpeg info\n");
-            fprintf(stderr,"\t-l: long info\n");
-            fprintf(stderr,"\t-m: messages\n");
-            fprintf(stderr,"\t-c: call page\n");
-            fprintf(stderr,"\t-p: plugin page\n");
-            fprintf(stderr,"\t-t: thread page\n");
-            fprintf(stderr,"\t-h: this list\n");
+            fprintf(stderr,"Usage: %s [-l][-r][-rp][-n][-g][-f][-m][-c][-p][-t][-h]\n",argv[0]);
+            fprintf(stderr,"\t-d:  default info (read, count and ffmpeg)\n");
+            fprintf(stderr,"\t-r:  read info\n");
+            fprintf(stderr,"\t-rp: read proc info\n");
+            fprintf(stderr,"\t-n:  count info\n");
+            fprintf(stderr,"\t-g:  group info\n");
+            fprintf(stderr,"\t-f:  ffmpeg info\n");
+            fprintf(stderr,"\t-l:  long info\n");
+            fprintf(stderr,"\t-m:  messages\n");
+            fprintf(stderr,"\t-c:  call page\n");
+            fprintf(stderr,"\t-p:  plugin page\n");
+            fprintf(stderr,"\t-t:  thread page\n");
+            fprintf(stderr,"\t-h:  this list\n");
             return 0;
         }
     }
