@@ -181,7 +181,7 @@ void af_set_volume(af_priv_t* af, float dB) {
 }
 
 void af_set_volume_level(af_priv_t* af, int vol) {
-    float soft_vol_max = 110.0;
+    float soft_vol_max = 100.0;
     float soft_vol = vol;
 
     soft_vol = ((soft_vol) / 100.0) * (soft_vol_max / 100.0);

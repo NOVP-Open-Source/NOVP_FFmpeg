@@ -586,8 +586,12 @@ int globalpause(slotinfo_t* slotinfo) {
 }
 
 static void *audio_process(void *data) {
+    void* af = NULL;
+    void* afnorm = NULL;
     slotinfo_t* slotinfo;
     af_data_t* af_data;
+    af_data_t* anormdata;
+    af_data_t* adata;
     double systime;
     double systimenext;
     double systimediff=0.0;
@@ -617,7 +621,8 @@ static void *audio_process(void *data) {
         write_wav_header(fh, xplayer_global_status->audio->rate, xplayer_global_status->audio->nch, 16, 0);
     }
 #endif
-
+    af=af_init(xplayer_global_status->audio->rate, xplayer_global_status->audio->nch, xplayer_global_status->audio->format, xplayer_global_status->audio->bps, 0.0);
+    afnorm=af_init(xplayer_global_status->audio->rate, xplayer_global_status->audio->nch, AF_FORMAT_FLOAT_NE, xplayer_global_status->audio->bps, 0.0);
     while (xplayer_global_status->run) {
 #ifdef USE_DEBUG_LIB
         if(dmem) {
@@ -646,7 +651,9 @@ static void *audio_process(void *data) {
 
             ptimes=xplayer_clock();
             audiodebugpass(1);
-            af_data=af_emptyfromdata(xplayer_global_status->audio, ml);
+//            af_data=af_emptyfromdata(xplayer_global_status->audio, ml);
+//            af_data=af_empty(xplayer_global_status->audio->rate, xplayer_global_status->audio->nch, AUDIO_FORMAT, 0.0, ml);
+            af_data=af_empty(xplayer_global_status->audio->rate, xplayer_global_status->audio->nch, AF_FORMAT_FLOAT_NE, 0, ml*2);
             pthread_mutex_lock(&xplayer_global_status->audiomutex);
             slotinfo=xplayer_global_status->slotinfo;
             while(slotinfo) {
@@ -668,13 +675,21 @@ static void *audio_process(void *data) {
                 audiodebugpass(6);
                 slotinfo=(slotinfo_t*)slotinfo->next;
             }
+            if(afnorm) {
+                anormdata=af_play(afnorm, af_data);
+            } else
+                anormdata=af_data;
+            if(af)
+                adata=af_play(af, anormdata);
+            else
+                adata=anormdata;
 #ifdef USE_WAV_DUMP
             if(fh) {
-                fwrite(af_data->audio,1,af_data->len,fh);
-                wavsize+=af_data->len;
+                fwrite(adata->audio,1,adata->len,fh);
+                wavsize+=adata->len;
             }
 #endif
-            audio_append(xplayer_global_status->audio, af_data);
+            audio_append(xplayer_global_status->audio, adata);
             af_data_free(af_data);
             pthread_mutex_unlock(&xplayer_global_status->audiomutex);
             audiodebugbuffer(xplayer_global_status->audio->len);
@@ -745,6 +760,12 @@ static void *audio_process(void *data) {
         {
             break;
         }
+    }
+    if(af) {
+        af_uninit(af);
+    }
+    if(afnorm) {
+        af_uninit(afnorm);
     }
 #ifdef USE_WAV_DUMP
     if(fh) {
@@ -5509,7 +5530,7 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
     is->slotinfo->audio_info.rate=is->audio_src_freq;
     is->slotinfo->audio_info.format=audio_ffmpeg_format(is->audio_src_fmt);
     if(!is->slotinfo->af) {
-        is->slotinfo->af=af_init(basedata->rate, basedata->nch, basedata->format, basedata->bps, 10.0);
+        is->slotinfo->af=af_init(basedata->rate, basedata->nch, basedata->format, basedata->bps, 5.0);
         is->speed=1.0;
         af_volume_level(is->slotinfo->af, is->slotinfo->volume);
         is->slotinfo->setvolume=0;
@@ -5540,7 +5561,7 @@ if(is->speed!=1.0 && adata) {
 }
 #endif
     af_data->rate=basedata->rate;
-    basedata=af_data_mixer(basedata, 0, len, af_data);
+    basedata=af_data_mixer(basedata, 0, 0, af_data);
     if(adata)
         af_data_free(adata);
     if(!is->paused && is->slotinfo->groupid && !is->realtime) {
@@ -5568,7 +5589,7 @@ if(is->speed!=1.0 && adata) {
                 af_uninit(is->slotinfo->af);
                 is->speedrate=round((2.0-is->speed)*basedata->rate);
 //fprintf(stderr,"Slot: %d speed: %4.2f rate: %d speedrate: %d \n",is->slotinfo->slotid,is->speed,basedata->rate,is->speedrate);
-                is->slotinfo->af=af_init(is->speedrate, basedata->nch, basedata->format, basedata->bps, 10.0);
+                is->slotinfo->af=af_init(is->speedrate, basedata->nch, basedata->format, basedata->bps, 5.0);
                 af_volume_level(is->slotinfo->af, is->slotinfo->volume);
                 if(is->speed==1.0) {
                     is->groupsync=0;
