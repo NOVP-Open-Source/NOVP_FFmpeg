@@ -336,6 +336,7 @@ static void master_init(int callerid) {
         xplayer_global_status->forcevolume=atoi(env);
     }
     for(n=0;n<MAX_GROUPS;n++) {
+        xplayer_global_status->groups[n].master_slot=-1;
         pthread_mutex_init(&xplayer_global_status->groups[n].pausemutex, NULL);
     }
     av_log_set_level(loglevel);
@@ -362,7 +363,9 @@ static void group_update_master(int group)
 
     if(!group)
         return;
-    masterslotinfo = get_slot_info(xplayer_global_status->groups[group].master_slot,0,0);
+    if(xplayer_global_status->groups[group].master_slot!=-1) {
+        masterslotinfo = get_slot_info(xplayer_global_status->groups[group].master_slot,0,0);
+    }
     slotinfo=xplayer_global_status->slotinfo;
     while(slotinfo) {
         if(slotinfo->groupid==group) {
@@ -375,6 +378,9 @@ static void group_update_master(int group)
             }
         }
         slotinfo=(slotinfo_t*)slotinfo->next;
+    }
+    if(!masterslotinfo) {
+        xplayer_global_status->groups[group].master_slot=-1;
     }
     if(masterslotinfo && (masterslotinfo->debugflag & DEBUGFLAG_GROUP)) {
         av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"Group Master: %d \n",xplayer_global_status->groups[group].master_slot);
@@ -3307,9 +3313,11 @@ static double get_master_clock(VideoState *is)
 static VideoState* get_group_master(VideoState *is, int lock)
 {
     if(is->slotinfo->groupid) {
-        slotinfo_t* slotinfo = get_slot_info(xplayer_global_status->groups[is->slotinfo->groupid].master_slot,0,lock);
-        if(slotinfo && slotinfo->streampriv) {
-            return (VideoState*)slotinfo->streampriv;
+        if(xplayer_global_status->groups[is->slotinfo->groupid].master_slot!=-1) {
+            slotinfo_t* slotinfo = get_slot_info(xplayer_global_status->groups[is->slotinfo->groupid].master_slot,0,lock);
+            if(slotinfo && slotinfo->streampriv) {
+                return (VideoState*)slotinfo->streampriv;
+            }
         }
     }
     return is;
@@ -3321,7 +3329,9 @@ static double get_group_clock(VideoState *is)
     slotinfo_t* slotinfo = NULL;
     if(is->slotinfo->groupid) {
         masterid = xplayer_global_status->groups[is->slotinfo->groupid].master_slot;
-        slotinfo = get_slot_info(masterid,0,1);
+        if(masterid!=-1) {
+            slotinfo = get_slot_info(masterid,0,1);
+        }
     }
     if(slotinfo && slotinfo->streampriv) {
         return get_master_clock((VideoState*)slotinfo->streampriv);
