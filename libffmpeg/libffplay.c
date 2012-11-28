@@ -6431,7 +6431,6 @@ static void* read_thread(void *arg)
                     }
                 }
             } else if(is->paused) {
-fprintf(stderr,"toggle4\n");
                 toggle_pause(is);
             }
 #if 0
