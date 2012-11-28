@@ -582,7 +582,6 @@ int globalpause(slotinfo_t* slotinfo) {
 static void *audio_process(void *data) {
     slotinfo_t* slotinfo;
     af_data_t* af_data;
-    af_data_t* ardata;
     double systime;
     double systimenext;
     double systimediff=0.0;
@@ -2494,7 +2493,6 @@ typedef struct VideoState {
     double speed;
     int speedrate;
 
-    int stopbug;
 } VideoState;
 
 #if CONFIG_AVFILTER
@@ -3484,9 +3482,11 @@ static void group_stream_seek(VideoState* is, double pos)
             if((is->slotinfo->debugflag & DEBUGFLAG_GROUP)) {
                 av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"group stream seek: slot: %d pos: %8.3f\n",slotinfo->slotid,spos);
             }
-            sis->slotinfo->pauseseekreq=1;
+            if(!sis->realtime)
+                sis->slotinfo->pauseseekreq=1;
             stream_seek(sis, (int64_t)(spos * AV_TIME_BASE), 0, 0);
-            sis->groupsync=1;
+            if(!sis->realtime)
+                sis->groupsync=1;
         }
         slotinfo=(slotinfo_t*)slotinfo->next;
     }
@@ -5272,7 +5272,6 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
     int ptsvalid = 1;
     double oldclock,newclock,diffclock,diffiter;
     double oldspeed;
-    int speedrate;
     long long int calclen;
     int speedlen;
 
@@ -5380,7 +5379,8 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
             event.data = is->slotinfo->streampriv;
             push_event(is->slotinfo->eventqueue, &event);
         } else {
-            is->slotinfo->pausereq=1;
+            if(!is->realtime)
+                is->slotinfo->pausereq=1;
         }
 //        is->audio_drop=0;
     } else if(is->slotinfo->pausereq) {
@@ -5545,19 +5545,21 @@ if(is->speed!=1.0 && adata) {
             } else {
                 is->speed=1.00;
             }
-            if(oldspeed!=is->speed) {
-                if(is->slotinfo->af && is->audio_tgt_freq) {
-                    af_uninit(is->slotinfo->af);
-                    is->speedrate=round((2.0-is->speed)*basedata->rate);
+        } else {
+            is->speed=1.0;
+        }
+        if(oldspeed!=is->speed) {
+            if(is->slotinfo->af && is->audio_tgt_freq) {
+                af_uninit(is->slotinfo->af);
+                is->speedrate=round((2.0-is->speed)*basedata->rate);
 //fprintf(stderr,"Slot: %d speed: %4.2f rate: %d speedrate: %d \n",is->slotinfo->slotid,is->speed,basedata->rate,is->speedrate);
-                    is->slotinfo->af=af_init(is->speedrate, basedata->nch, basedata->format, basedata->bps, 10.0);
-                    af_volume_level(is->slotinfo->af, is->slotinfo->volume);
-                    if(is->speed==1.0) {
-                        is->groupsync=0;
-                    }
-                } else {
-                    is->speed=oldspeed;
+                is->slotinfo->af=af_init(is->speedrate, basedata->nch, basedata->format, basedata->bps, 10.0);
+                af_volume_level(is->slotinfo->af, is->slotinfo->volume);
+                if(is->speed==1.0) {
+                    is->groupsync=0;
                 }
+            } else {
+                is->speed=oldspeed;
             }
 //fprintf(stderr,"Slot: %d master: %8.3f slave: %8.3f => %8.3f groupsync: %d \n",is->slotinfo->slotid,mtime,stime,(stime+is->slotinfo->grouptime)-(mtime+mis->slotinfo->grouptime),is->groupsync);
         }
@@ -6316,7 +6318,12 @@ static void* read_thread(void *arg)
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): open stream: %d pass10 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
-    printdebugbuffer(is->slotinfo->slotid, "Open streams OK. (%s)", is->filename);
+    if(is->ic->duration==AV_NOPTS_VALUE) {
+        printdebugbuffer(is->slotinfo->slotid, "Open streams OK. (%s) Duration: realtime", is->filename);
+    } else {
+        double d = is->ic->duration/1000000LL;
+        printdebugbuffer(is->slotinfo->slotid, "Open streams OK. (%s) Duration: %8.3f", is->filename,d);
+    }
     for(;;) {
         if(!is->slotinfo->pauseafterload && !(is->slotinfo->status &STATUS_PLAYER_OPENED)) {
             is->slotinfo->status|=(STATUS_PLAYER_OPENED);
@@ -6344,7 +6351,7 @@ static void* read_thread(void *arg)
         if (is->abort_request)
             break;
 
-        if(is->groupsync && (!strcmp(is->ic->iformat->name, "rtsp") && is->ic->duration==AV_NOPTS_VALUE)) {
+        if(is->groupsync && (is->ic->duration==AV_NOPTS_VALUE || !strcmp(is->ic->iformat->name, "rtsp"))) {
             is->slotinfo->pauseseekreq=0;
             is->groupsync=0;
             if(is->paused) {
@@ -6405,13 +6412,6 @@ static void* read_thread(void *arg)
 #endif
         }
 
-        if(is->stopbug) {
-            is->stopbug++;
-            if(is->stopbug==10) {
-                is->stopbug=0;
-            }
-        }
-
         pthread_mutex_lock(&is->event_mutex);
         if (is->last_paused && (is->slotinfo->pausereq||is->slotinfo->pauseseekreq)) {
             is->last_paused = 0;
@@ -6469,7 +6469,8 @@ static void* read_thread(void *arg)
 #warning FIXME!! pause_seek
             if(!is->slotinfo->audio_disable && !is->realtime)
                 is->read_enable=-1;
-            is->slotinfo->pausereq=1;
+            if(!is->realtime)
+                is->slotinfo->pausereq=1;
             is->valid_delay=INVALID_FRAME;
             is->seek_pts = is->seek_pos / AV_TIME_BASE;
             pthread_mutex_unlock(&is->event_mutex);
@@ -6510,7 +6511,8 @@ static void* read_thread(void *arg)
                     is->read_enable=0;
                 }
             }
-            is->slotinfo->pausereq=1;
+            if(!is->realtime)
+                is->slotinfo->pausereq=1;
             pthread_mutex_lock(&is->event_mutex);
             if(seek_target) {
                 is->seek_req++;
@@ -6922,7 +6924,7 @@ static void event_loop(slotinfo_t* slotinfo)
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: set pause (pause: %d)\n",is->slotinfo->slotid,get_master_clock(is),is->paused);
             is->pause_seek=0;
             is->slotinfo->newimageflag&=2;
-            if(!is->paused && !is->stopbug) {
+            if(!is->paused) {
                 toggle_pause(is);
             }
             break;
