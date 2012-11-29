@@ -6227,6 +6227,7 @@ static void* read_thread(void *arg)
         ret = -1;
         goto fail;
     }
+    ic->probesize=50000;
     is->ic = ic;
     if(is->slotinfo->genpts)
         ic->flags |= AVFMT_FLAG_GENPTS;
