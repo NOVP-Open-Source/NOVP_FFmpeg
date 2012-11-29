@@ -2521,6 +2521,13 @@ typedef struct VideoState {
     int speedrate;
     unsigned long long int audiocorr;
 
+#ifdef USE_WAV_DUMP
+    FILE* fhwav1;
+    FILE* fhwav2;
+    int wav1size;
+    int wav2size;
+#endif
+
 } VideoState;
 
 #if CONFIG_AVFILTER
@@ -3201,6 +3208,16 @@ static void stream_close(VideoState *is)
 #endif
     pthread_mutex_lock(&slotinfo->audiomutex);
     is->slotinfo->streampriv=NULL;
+#ifdef USE_WAV_DUMP
+    if(is->fhwav1) {
+        update_wav_header(is->fhwav1,is->wav1size);
+        fclose(is->fhwav1);
+    }
+    if(is->fhwav2) {
+        update_wav_header(is->fhwav2,is->wav2size);
+        fclose(is->fhwav2);
+    }
+#endif
     av_free(is);
     slotinfo->audiolock=0;
     pthread_mutex_unlock(&slotinfo->audiomutex);
@@ -5037,6 +5054,7 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
     int pktdataoffset;
     uint8_t *pktdata;
     int dlen = 0;
+    int sdlen = 0;
     int ptslen = 0;
     int difflen = 0;
     int fillzero = 0;
@@ -5181,6 +5199,20 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
         }
         resampled_data_size = data_size;
         if (is->swr_ctx) {
+#ifdef USE_WAV_DUMP
+            if(!is->fhwav2) {
+                char tmp[8192];
+                snprintf(tmp,sizeof(tmp),"/tmp/slot-%d-orig.wav",is->slotinfo->slotid);
+                is->fhwav2=fopen(tmp,"w+");
+                if(is->fhwav2)
+                    write_wav_header(is->fhwav2, is->audio_src_freq, is->audio_src_channels, 16, 0);
+                is->wav2size=0;
+            }
+            if(is->fhwav2) {
+                fwrite(is->frame->data[0],data_size,1,is->fhwav2);
+                is->wav2size+=data_size;
+            }
+#endif
             const uint8_t *in[] = { is->frame->data[0] };
             uint8_t *out[] = {is->audio_buf2};
             len2 = swr_convert(is->swr_ctx, out, sizeof(is->audio_buf2) / is->audio_tgt_channels / av_get_bytes_per_sample(is->audio_tgt_fmt),
@@ -5198,7 +5230,24 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
         } else {
             is->audio_buf = is->frame->data[0];
         }
+
         data_size=resampled_data_size;
+#ifdef USE_WAV_DUMP
+        if(!is->fhwav1) {
+            char tmp[8192];
+            snprintf(tmp,sizeof(tmp),"/tmp/slot-%d-conv.wav",is->slotinfo->slotid);
+            is->fhwav1=fopen(tmp,"w+");
+            is->wav1size=0;
+            if(is->fhwav1)
+                write_wav_header(is->fhwav1, is->audio_tgt_freq, is->audio_tgt_channels, 16, 0);
+        }
+        if(is->fhwav1) {
+            fwrite(is->audio_buf,data_size,1,is->fhwav1);
+            is->wav1size+=data_size;
+        }
+#endif
+        sdlen+=data_size;
+
         if(fillzero) {
 #if USE_AUDIOCORR_ZERO
             fill_zero_package(is, is->audio_buf, data_size);
@@ -5245,6 +5294,9 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
         first=0;
         pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
     }
+
+//fprintf(stderr,"Slot: %d write len: %d buf len: %d pts: %8.3f \n",is->slotinfo->slotid,sdlen,is->audio_decode_buffer_len,is->decode_audio_clock);
+
     clock=dlen;
     l=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq;
     clock/=l;
@@ -5371,7 +5423,7 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
         }
     }
     if(!strcmp(is->ic->iformat->name, "rtsp") && is->ic->duration==AV_NOPTS_VALUE) {
-        is->audio_clock_diff_len=0;
+//        is->audio_clock_diff_len=0;
         is->audio_diff=0;
     }
     is->audio_buf_size = sizeof(is->silence_buf);
@@ -5383,6 +5435,7 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
         }
     }
 #endif
+
     if(is->audio_drop) {
         dlen=is->audio_drop;
         if(dlen>is->audio_decode_buffer_len)
@@ -6844,6 +6897,16 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
     av_log(NULL, AV_LOG_DEBUG,"[debug] stream_open(): create read thread: %d OK ----\n",slotinfo->slotid);
 #endif
     if (!is->read_tid) {
+#ifdef USE_WAV_DUMP
+        if(is->fhwav1) {
+            update_wav_header(is->fhwav1,is->wav1size);
+            fclose(is->fhwav1);
+        }
+        if(is->fhwav2) {
+            update_wav_header(is->fhwav2,is->wav2size);
+            fclose(is->fhwav2);
+        }
+#endif
         av_free(is);
         return NULL;
     }
