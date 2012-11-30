@@ -30,3 +30,16 @@ Index: libavformat/tcp.c
      return ret < 0 ? ff_neterrno() : ret;
  }
  
+Index: FFmpeg/libavformat/rtpdec_mpeg4.c
+===================================================================
+--- FFmpeg/libavformat/rtpdec_mpeg4.c
++++ FFmpeg/libavformat/rtpdec_mpeg4.c
+@@ -203,6 +203,7 @@
+     }
+ 
+     if (codec->codec_id == AV_CODEC_ID_AAC) {
++        while((*attr==' ' || *attr==';')) attr++;
+         /* Looking for a known attribute */
+         for (i = 0; attr_names[i].str; ++i) {
+             if (!av_strcasecmp(attr, attr_names[i].str)) {
+
