@@ -2377,6 +2377,8 @@ typedef struct VideoState {
     int read_pause_return;
     AVFormatContext *ic;
     int audio_exit_flag;
+    int reading;
+    int readeof;
 
     int groupsync;
 
@@ -3383,6 +3385,7 @@ static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_by
     pthread_mutex_lock(&is->event_mutex);
     if (is->seek_req!=1) {
         is->seek_pos = pos;
+        is->slotinfo->currentpos=pos;
         is->seek_rel = rel;
         is->seek_flags &= ~AVSEEK_FLAG_BYTE;
         if (is->slotinfo->seek_by_bytes)
@@ -3518,6 +3521,7 @@ static void group_stream_seek(VideoState* is, double pos)
             sis->audio_clock = 0.0;
             sis->audio_clock_diff_len = 0;
             sis->audio_diff=0;
+            sis->slotinfo->currentpos=spos;
 #ifndef USES_PAUSESEEK
             if (sis->paused) {
                 sis->pause_seek = 1;
@@ -3541,6 +3545,26 @@ static void group_stream_seek(VideoState* is, double pos)
         slotinfo=(slotinfo_t*)slotinfo->next;
     }
     pthread_mutex_unlock(&xplayer_global_status->mutex);
+}
+
+static int group_eof(VideoState* is)
+{
+    int ret = is->readeof;
+    if(!is->slotinfo->groupid || is->slotinfo->length<=0.0) {
+        return ret;
+    }
+    pthread_mutex_lock(&xplayer_global_status->mutex);
+    slotinfo_t* slotinfo=xplayer_global_status->slotinfo;
+    while(slotinfo) {
+        if(slotinfo->groupid==is->slotinfo->groupid && slotinfo->streampriv) {
+            VideoState* sis = (VideoState*)slotinfo->streampriv;
+            if(sis->readeof)
+                ret=1;
+        }
+        slotinfo=(slotinfo_t*)slotinfo->next;
+    }
+    pthread_mutex_unlock(&xplayer_global_status->mutex);
+    return ret;
 }
 
 static double compute_target_delay(double delay, VideoState *is)
@@ -5379,6 +5403,27 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
             return basedata;
     }
     pthread_mutex_lock(&is->audio_decode_buffer_mutex);
+
+    if(speedlen>is->audio_decode_buffer_len) {
+#if 0
+        double mc = get_master_clock(is);
+        mc=is->decode_audio_clock;
+        fprintf(stderr,"Slot: %d len: %8.3f mc: %8.3f stop?: %d \n",is->slotinfo->slotid,is->slotinfo->length,mc,(is->slotinfo->length<mc && is->slotinfo->length+2.0>=mc));
+        if(is->slotinfo->length>0.0 && is->slotinfo->length<mc && is->slotinfo->length+2.0>=mc)
+        {
+            pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
+            av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_audio_data(): slot: %d, send stop event (master clock: %7.3f duration: %7.3f\n",is->slotinfo->slotid,mc,is->slotinfo->length);
+            is->slotinfo->playflag=0;
+            is->slotinfo->pauseafterload=1;
+            is->slotinfo->reopen=0;
+            event.type = FF_STOP_EVENT;
+            event.data = is->slotinfo->streampriv;
+            push_event(is->slotinfo->eventqueue, &event);
+fprintf(stderr,"Slot: %d STOP!!!\n",is->slotinfo->slotid);
+            return basedata;
+        }
+#endif
+    }
     if(globalpause(is->slotinfo) && !is->slotinfo->pausereq && speedlen<=is->audio_decode_buffer_len) {
         pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
         return basedata;
@@ -5459,8 +5504,11 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
         is->audio_drop+=speedlen-is->audio_decode_buffer_len;
         speedlen=is->audio_decode_buffer_len;
         double mc = get_master_clock(is);
+        mc=is->decode_audio_clock;
+//fprintf(stderr,"Slot: %d len: %8.3f mc: %8.3f stop?: %d \n",is->slotinfo->slotid,is->slotinfo->length,mc,(is->slotinfo->length<mc && is->slotinfo->length+2.0>=mc));
         if(is->slotinfo->length>0.0 && is->slotinfo->length<mc && is->slotinfo->length+2.0>=mc)
         {
+#if 0
             av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_audio_data(): slot: %d, send stop event (master clock: %7.3f duration: %7.3f\n",is->slotinfo->slotid,mc,is->slotinfo->length);
             is->slotinfo->playflag=0;
             is->slotinfo->pauseafterload=1;
@@ -5468,6 +5516,7 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
             event.type = FF_STOP_EVENT;
             event.data = is->slotinfo->streampriv;
             push_event(is->slotinfo->eventqueue, &event);
+#endif
         } else {
             if(!is->realtime)
                 is->slotinfo->pausereq=1;
@@ -6205,7 +6254,9 @@ static int decode_interrupt_cb(void *ctx)
 //fprintf(stderr,"decode_interrupt_cb(%p)\n",ctx);
     VideoState *is = ctx;
     if(is) {
-        return is->abort_request;
+//if(is->seek_req==1 && is->reading)
+//    fprintf(stderr,"Slot: %d interrupt!!\n",is->slotinfo->slotid);
+        return (is->abort_request || (is->seek_req==1 && is->reading));
     }
     return (global_video_state && global_video_state->abort_request);
 }
@@ -6511,14 +6562,20 @@ static void* read_thread(void *arg)
             is->last_paused = 0;
             is->read_pause_return= av_read_pause(ic);
         }
-        if ((ispaused(is) != is->last_paused) && (!globalpause(is->slotinfo) || is->last_paused) && !(is->slotinfo->pausereq||is->slotinfo->pauseseekreq) && !is->seek_req) {
+        if(ispaused(is) && is->readeof && !(is->slotinfo->status&STATUS_PLAYER_PAUSE)) {
+            is->slotinfo->status|=STATUS_PLAYER_PAUSE;
+        }
+        if ((ispaused(is) != is->last_paused) && (!globalpause(is->slotinfo) || is->last_paused) && !(is->slotinfo->pausereq||is->slotinfo->pauseseekreq) && !is->seek_req && !is->readeof) {
             is->last_paused = ispaused(is);
             pthread_mutex_unlock(&is->event_mutex);
             if (is->last_paused) {
                 if((is->slotinfo->debugflag & DEBUGFLAG_GROUP)) {
                     av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"Slot: %d av set pause\n",is->slotinfo->slotid);
                 }
-                is->read_pause_return= av_read_pause(ic);
+//                if(!is->readeof)
+                {
+                    is->read_pause_return= av_read_pause(ic);
+                }
                 is->slotinfo->status|=STATUS_PLAYER_PAUSE;
             } else {
                 if((is->slotinfo->debugflag & DEBUGFLAG_GROUP)) {
@@ -6552,6 +6609,7 @@ static void* read_thread(void *arg)
 #endif
         pthread_mutex_lock(&is->event_mutex);
         if (is->seek_req==1) {
+            is->readeof=0;
             is->audio_seek_flag=1;
             seek_target= is->seek_pos;
             seek_min= is->seek_rel > 0 ? seek_target - is->seek_rel + 2: INT64_MIN;
@@ -6573,7 +6631,7 @@ static void* read_thread(void *arg)
             }
 
             st=xplayer_clock();
-            if(is->last_paused) {
+            if(is->last_paused || is->readeof) {
                 av_read_play(ic);
                 is->last_paused=0;
             }
@@ -6583,6 +6641,7 @@ static void* read_thread(void *arg)
             if((is->slotinfo->debugflag & DEBUGFLAG_GROUP)) {
                 av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"Slot: %d av seek %lld ret: %d paused: %d last_paused: %d\n",is->slotinfo->slotid,is->seek_pos,ret,is->paused,is->last_paused);
             }
+//fprintf(stderr,"Slot: %d av seek %lld ret: %d paused: %d last_paused: %d\n",is->slotinfo->slotid,is->seek_pos,ret,is->paused,is->last_paused);
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "[debug] read_thread(): %s: error while seeking\n", is->ic->filename);
                 is->read_enable=read_enable;
@@ -6683,9 +6742,15 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
             readpass(is, 4);
             continue;
         }
+        if(pkt) {
+            pkt->pts=AV_NOPTS_VALUE;
+        }
         st=xplayer_clock();
         pass=readpass(is, 9);
+//fprintf(stderr,"Slot: %d read ... seek_req: %d\n",is->slotinfo->slotid,is->seek_req);
+        is->reading=1;
         ret = av_read_frame(ic, pkt);
+        is->reading=0;
         readpass(is, pass);
         et=xplayer_clock();
         wtime+=et-st;
@@ -6694,7 +6759,13 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
         if(pkt->pts!=AV_NOPTS_VALUE)
         {
             pktpts = av_q2d(ic->streams[pkt->stream_index]->time_base) * pkt->pts;
+            if(is->slotinfo->length>0.0 && pktpts>=is->slotinfo->length) {
+                is->readeof=1;
+            } else {
+                is->readeof=0;
+            }
         }
+//fprintf(stderr,"Slot: %d read ret: %d pts: %8.3f len: %8.3f seek_req: %d\n",is->slotinfo->slotid,ret,pktpts,is->slotinfo->length,is->seek_req);
 
         if(is->seek_req>1) {
             double dseek = (double)seek_target/AV_TIME_BASE;
@@ -6740,9 +6811,10 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
         if (ret < 0) {
             if (ret == AVERROR_EOF || url_feof(ic->pb))
                 eof=1;
+//fprintf(stderr,"Slot: %d EOF: %d !!! <----------------------------------------\n",is->slotinfo->slotid,eof);
             if (ic->pb && ic->pb->error)
                 break;
-            if(clearpause && eof) {
+            if((clearpause || is->seek_req) && eof) {
                 av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): read stream eof?: %d ret: %d %x AVEOF: %d feof: %d\n",is->slotinfo->slotid,ret,-ret,AVERROR_EOF,url_feof(ic->pb));
                 is->slotinfo->reopen=1;
                 break;
@@ -6787,6 +6859,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): read stream: %d end1 '%s' \n",is->slotinfo->slotid,is->filename);
 #endif
+//fprintf(stderr,"Slot: %d wait end ... <----------------------------------------\n",is->slotinfo->slotid);
     /* wait until the end */
     while (!is->abort_request && !is->slotinfo->reopen) {
         st=xplayer_clock();
@@ -6800,6 +6873,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
 
     ret = 0;
  fail:
+//fprintf(stderr,"Slot: %d wait end !!! <----------------------------------------\n",is->slotinfo->slotid);
     is->slotinfo->status&=~(STATUS_PLAYER_CONNECT|STATUS_PLAYER_OPENED|STATUS_PLAYER_PAUSE);
     /* disable interrupting */
     global_video_state = NULL;
@@ -7044,6 +7118,9 @@ static void event_loop(slotinfo_t* slotinfo)
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: clear pause (pause: %d)\n",is->slotinfo->slotid,get_master_clock(is),is->paused);
             is->pause_seek=0;
             is->slotinfo->newimageflag&=2;
+            if(group_eof(is)) {
+                group_stream_seek(is, 0.0);
+            }
             if(is->slotinfo->groupid) {
                 group_toggle_pause(is,PAUSE_CLEAR_EVENT);
             }

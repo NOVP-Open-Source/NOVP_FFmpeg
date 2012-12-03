@@ -181,10 +181,11 @@ int af_init_format(af_priv_t* af,af_data_t *data) {
        (AF_OK != check_format(af->data->format)))
       return AF_ERROR;
 
+#if 0
     av_log(NULL, AV_LOG_VERBOSE,"[format] Changing sample format from %s to %s\n",
                   af_fmt2str(data->format,buf1,256),
                   af_fmt2str(af->data->format,buf2,256));
-
+#endif
     af->data->rate = data->rate;
     af->data->nch  = data->nch;
     af->mul        = (double)af->data->bps / data->bps;
