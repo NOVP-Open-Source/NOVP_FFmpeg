@@ -2521,6 +2521,7 @@ typedef struct VideoState {
     double diffd2clock;
 
     double speed;
+    double oldspeed;
     int speedrate;
     unsigned long long int audiocorr;
 
@@ -3779,6 +3780,15 @@ retry:
             av_diff = 0;
             if (is->audio_st && is->video_st)
                 av_diff = get_audio_clock(is) - get_video_clock(is);
+            if (is->realtime) {
+                if(av_diff<-0.04) {
+                    is->speed=1.05;
+                } else if(av_diff>0.04) {
+                    is->speed=0.95;
+                } else {
+                    is->speed=1.00;
+                }
+            }
             if(is->realtime)
                 snprintf(realtimetext,sizeof(realtimetext)," (RT)");
             else
@@ -5110,7 +5120,7 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
     difflen=0;
     if (pkt->pts != AV_NOPTS_VALUE) {
         last_pts=is->audio_decode_last_pts;
-        if(is->audio_decode_last_pts!=pkt->pts) {
+        if(is->audio_decode_last_pts!=pkt->pts && is->audio_decode_last_pts!=AV_NOPTS_VALUE) {
             ptslen=is->audio_tgt_channels * av_get_bytes_per_sample(is->audio_tgt_fmt) * is->audio_tgt_freq * av_q2d(is->audio_st->time_base);
             dlen=(pkt->pts-is->audio_decode_last_pts)*ptslen;
             difflen=dlen-is->audio_clock_diff_len;
@@ -5138,6 +5148,9 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
                 difflen=0;
             }
         }
+//        if(is->realtime) {
+//            difflen=0;
+//        }
 //        difflen+=is->audio_diff;
         diff=difflen;
         diff/=l;
@@ -5152,6 +5165,7 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
 #ifdef DEBUG_AUDIOCORR
             fprintf(stderr,"Slot: %d difflen: %d diff: %8.3f ms\n",is->slotinfo->slotid,difflen,diff*1000.0);
 #endif
+            fprintf(stderr,"Slot: %d difflen: %d diff: %8.3f ms\n",is->slotinfo->slotid,difflen,diff*1000.0);
         }
 //        difflen=0;
 //        diff=0.0;
@@ -5353,7 +5367,7 @@ static void audio_decode_flush(VideoState *is)
     is->audio_decode_buffer_len=0;
     is->audio_decode_buffer_size=0;
     is->audio_decode_buffer_clock=0.0;
-    is->audio_decode_last_pts=0;
+    is->audio_decode_last_pts=AV_NOPTS_VALUE;
     is->audio_drop=0;
     is->audiocorr=0;
     is->decode_audio_clock=0;
@@ -5385,7 +5399,6 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
     char info[8192];
     int ptsvalid = 1;
     double oldclock,newclock,diffclock,diffiter;
-    double oldspeed;
     long long int calclen;
     int speedlen;
 
@@ -5636,6 +5649,7 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
     if(!is->slotinfo->af) {
         is->slotinfo->af=af_init(basedata->rate, basedata->nch, basedata->format, basedata->bps, 5.0);
         is->speed=1.0;
+        is->oldspeed=is->speed;
         af_volume_level(is->slotinfo->af, is->slotinfo->volume);
         is->slotinfo->setvolume=0;
     }
@@ -5673,7 +5687,6 @@ if(is->speed!=1.0 && adata) {
         double mtime = get_master_clock(mis)+mis->slotinfo->grouptime;
         double stime = get_master_clock(is)+is->slotinfo->grouptime;
         if(mis!=is) {
-            oldspeed=is->speed;
             if(mtime>stime+0.1) {
                 is->speed=1.10;
             } else if(mtime>stime+0.02) {
@@ -5686,23 +5699,22 @@ if(is->speed!=1.0 && adata) {
                 is->speed=1.00;
             }
         } else {
-            is->speed=1.0;
+//            is->speed=1.0;
         }
-        if(oldspeed!=is->speed) {
-            if(is->slotinfo->af && is->audio_tgt_freq) {
-                af_uninit(is->slotinfo->af);
-                is->speedrate=round((2.0-is->speed)*basedata->rate);
-//fprintf(stderr,"Slot: %d speed: %4.2f rate: %d speedrate: %d \n",is->slotinfo->slotid,is->speed,basedata->rate,is->speedrate);
-                is->slotinfo->af=af_init(is->speedrate, basedata->nch, basedata->format, basedata->bps, 5.0);
-                af_volume_level(is->slotinfo->af, is->slotinfo->volume);
-                if(is->speed==1.0) {
-                    is->groupsync=0;
-                }
-            } else {
-                is->speed=oldspeed;
+    }
+    if(is->oldspeed!=is->speed) {
+        is->oldspeed=is->speed;
+        if(is->slotinfo->af && is->audio_tgt_freq) {
+            af_uninit(is->slotinfo->af);
+            is->speedrate=round((2.0-is->speed)*basedata->rate);
+fprintf(stderr,"Slot: %d speed: %4.2f rate: %d speedrate: %d \n",is->slotinfo->slotid,is->speed,basedata->rate,is->speedrate);
+            is->slotinfo->af=af_init(is->speedrate, basedata->nch, basedata->format, basedata->bps, 5.0);
+            af_volume_level(is->slotinfo->af, is->slotinfo->volume);
+            if(is->speed==1.0 && !is->realtime) {
+                is->groupsync=0;
             }
-//fprintf(stderr,"Slot: %d master: %8.3f slave: %8.3f => %8.3f groupsync: %d \n",is->slotinfo->slotid,mtime,stime,(stime+is->slotinfo->grouptime)-(mtime+mis->slotinfo->grouptime),is->groupsync);
         }
+//fprintf(stderr,"Slot: %d master: %8.3f slave: %8.3f => %8.3f groupsync: %d \n",is->slotinfo->slotid,mtime,stime,(stime+is->slotinfo->grouptime)-(mtime+mis->slotinfo->grouptime),is->groupsync);
     }
 
 #ifdef USE_DEBUG_LIB
