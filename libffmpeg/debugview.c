@@ -314,10 +314,11 @@ static void status_disp(slotdebug_t* slotdebug, debugview_t* debugview, double m
                 slotdebug->audio_diff
                );
         if(debugview->readproc_disp) {
-            printf("RT: %8.3f RN: %3d RP: %2d ",
+            printf("RT: %8.3f RN: %3d RP: %2d/%2d ",
                     slotdebug->readpts,
                     slotdebug->readno % 1000,
-                    slotdebug->readpass
+                    slotdebug->readpass,
+                    slotdebug->readpassid
                     );
         }
         if(debugview->ffmpeg_disp) {

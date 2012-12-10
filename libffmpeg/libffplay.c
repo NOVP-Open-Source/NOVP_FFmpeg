@@ -2378,6 +2378,7 @@ typedef struct VideoState {
     AVFormatContext *ic;
     int audio_exit_flag;
     int reading;
+    double readingtime;
     int readeof;
 
     int groupsync;
@@ -6254,14 +6255,19 @@ static int decode_interrupt_cb(void *ctx)
 //fprintf(stderr,"decode_interrupt_cb(%p)\n",ctx);
     VideoState *is = ctx;
     if(is) {
-//if(is->seek_req==1 && is->reading)
+        if(is->seek_req==1 && is->reading) {
+            if(is->readingtime+3.0<xplayer_clock()) {
 //    fprintf(stderr,"Slot: %d interrupt!!\n",is->slotinfo->slotid);
-        return (is->abort_request || (is->seek_req==1 && is->reading));
+                return 1;
+            }
+        }
+//        return (is->abort_request || (is->seek_req==1 && is->reading));
+        return is->abort_request;
     }
     return (global_video_state && global_video_state->abort_request);
 }
 
-static int readpass(VideoState *is, int pass)
+static int readpass(VideoState *is, int pass, int passid)
 {
     int ret = 0;
 #ifdef USE_DEBUG_LIB
@@ -6269,7 +6275,10 @@ static int readpass(VideoState *is, int pass)
             slotdebug_t* slotdebugs = debugmem_getslot(dmem);
             if(slotdebugs) {
                 ret=slotdebugs[is->slotinfo->slotid].readpass;
-                slotdebugs[is->slotinfo->slotid].readpass=pass;
+                if(pass!=-1)
+                    slotdebugs[is->slotinfo->slotid].readpass=pass;
+                if(passid!=-1)
+                    slotdebugs[is->slotinfo->slotid].readpassid=passid;
             }
         }
 #endif
@@ -6482,6 +6491,7 @@ static void* read_thread(void *arg)
 #endif
         wtime=0.0;
         stime=xplayer_clock();
+        readpass(is, -1, 1);
 
 #ifdef USE_DEBUG_LIB
         if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
@@ -6496,6 +6506,7 @@ static void* read_thread(void *arg)
         if (is->abort_request)
             break;
 
+        readpass(is, -1, 2);
         if(is->groupsync && (is->ic->duration==AV_NOPTS_VALUE || strcmp(is->ic->iformat->name, "rtsp"))) {
             is->slotinfo->pauseseekreq=0;
             is->groupsync=0;
@@ -6556,6 +6567,7 @@ static void* read_thread(void *arg)
             }
 #endif
         }
+        readpass(is, -1, 3);
 
         pthread_mutex_lock(&is->event_mutex);
         if (is->last_paused && (is->slotinfo->pausereq||is->slotinfo->pauseseekreq)) {
@@ -6590,6 +6602,7 @@ static void* read_thread(void *arg)
         } else {
             pthread_mutex_unlock(&is->event_mutex);
         }
+        readpass(is, -1, 4);
 #if CONFIG_RTSP_DEMUXER || CONFIG_MMSH_PROTOCOL
         if ((is->last_paused) && (!is->seek_req) &&
                 (!strcmp(ic->iformat->name, "rtsp") ||
@@ -6603,11 +6616,12 @@ static void* read_thread(void *arg)
             et=xplayer_clock();
             wtime+=et-st;
 //av_log(NULL, AV_LOG_DEBUG,"*********** read stream: %d pass2a '%s' %d \n",is->slotinfo->slotid,is->filename, dbgcnt++);
-            readpass(is, 1);
+            readpass(is, 1, -1);
             continue;
         }
 #endif
         pthread_mutex_lock(&is->event_mutex);
+        readpass(is, -1, 5);
         if (is->seek_req==1) {
             is->readeof=0;
             is->audio_seek_flag=1;
@@ -6630,18 +6644,22 @@ static void* read_thread(void *arg)
                 av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_thread(): clear valid\n");
             }
 
+            readpass(is, -1, 6);
             st=xplayer_clock();
-            if(is->last_paused || is->readeof) {
+            if(is->last_paused || is->readeof || 1) {
                 av_read_play(ic);
                 is->last_paused=0;
             }
+//fprintf(stderr,"Slot: %d av seek %lld paused: %d last_paused: %d .... \n",is->slotinfo->slotid,is->seek_pos,is->paused,is->last_paused);
             ret = avformat_seek_file(is->ic, -1, seek_min, seek_target, seek_max, is->seek_flags);
+//fprintf(stderr,"Slot: %d av seek %lld ret: %d paused: %d last_paused: %d\n",is->slotinfo->slotid,is->seek_pos,ret,is->paused,is->last_paused);
             et=xplayer_clock();
             wtime+=et-st;
             if((is->slotinfo->debugflag & DEBUGFLAG_GROUP)) {
                 av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"Slot: %d av seek %lld ret: %d paused: %d last_paused: %d\n",is->slotinfo->slotid,is->seek_pos,ret,is->paused,is->last_paused);
             }
 //fprintf(stderr,"Slot: %d av seek %lld ret: %d paused: %d last_paused: %d\n",is->slotinfo->slotid,is->seek_pos,ret,is->paused,is->last_paused);
+            readpass(is, -1, 7);
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "[debug] read_thread(): %s: error while seeking\n", is->ic->filename);
                 is->read_enable=read_enable;
@@ -6676,16 +6694,18 @@ static void* read_thread(void *arg)
             pthread_mutex_unlock(&is->event_mutex);
             eof= 0;
             is->paused=0;
+            readpass(is, -1, 8);
             if(is->last_paused && !is->seek_req && !is->groupsync) {
-                readpass(is, 2);
+                readpass(is, 2, -1);
                 continue;
             }
-            readpass(is, 0);
+            readpass(is, 0, -1);
         } else {
             pthread_mutex_unlock(&is->event_mutex);
         }
         int aqsize = is->audio_decode_buffer_len;
         /* if the queue are full, no need to read more */
+        readpass(is, -1, 9);
         if ((   aqsize + is->videoq.size + is->subtitleq.size > MAX_QUEUE_SIZE
             || (   (            aqsize  > MIN_AUDIOQ_SIZE || is->audio_stream<0)
                 && (is->videoq   .nb_packets > MIN_FRAMES || is->video_stream<0)
@@ -6704,9 +6724,10 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
             usleep(10000);
             et=xplayer_clock();
             wtime+=et-st;
-            readpass(is, 3);
+            readpass(is, 3, -1);
             continue;
         }
+        readpass(is, -1, 10);
         if(eof) {
             if(is->video_stream >= 0){
                 av_init_packet(pkt);
@@ -6739,19 +6760,21 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
                 }
             }
             eof=0;
-            readpass(is, 4);
+            readpass(is, 4, -1);
             continue;
         }
+        readpass(is, -1, 11);
         if(pkt) {
             pkt->pts=AV_NOPTS_VALUE;
         }
         st=xplayer_clock();
-        pass=readpass(is, 9);
+        pass=readpass(is, 9, -1);
 //fprintf(stderr,"Slot: %d read ... seek_req: %d\n",is->slotinfo->slotid,is->seek_req);
         is->reading=1;
+        is->readingtime=xplayer_clock();
         ret = av_read_frame(ic, pkt);
         is->reading=0;
-        readpass(is, pass);
+        readpass(is, pass, -1);
         et=xplayer_clock();
         wtime+=et-st;
 //fprintf(stderr,"Slot: %d read: %d pts: %lld\n",is->slotinfo->slotid,ret,pkt->pts);
@@ -6767,6 +6790,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
         }
 //fprintf(stderr,"Slot: %d read ret: %d pts: %8.3f len: %8.3f seek_req: %d\n",is->slotinfo->slotid,ret,pktpts,is->slotinfo->length,is->seek_req);
 
+        readpass(is, -1, 12);
         if(is->seek_req>1) {
             double dseek = (double)seek_target/AV_TIME_BASE;
 //            fprintf(stderr,"Slot: %d After seek: %lld -> %lld = %lld %lld\n",is->slotinfo->slotid,seek_target,pkt->pts,seek_target-pkt->pts,pkt->pts-seek_target);
@@ -6791,6 +6815,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
         if(!is->groupsync && !globalpause(is->slotinfo) && !(is->slotinfo->status&(STATUS_PLAYER_SEEK))) {
             is->slotinfo->status&=~(STATUS_PLAYER_PAUSE);
         }
+        readpass(is, -1, 13);
 
 #ifdef USE_DEBUG_LIB
         if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT && pkt) {
@@ -6805,6 +6830,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
             }
         }
 #endif
+        readpass(is, -1, 14);
         if((is->slotinfo->debugflag & DEBUGFLAG_READ)) {
             av_log(NULL, DEBUG_FLAG_LOG_LEVEL, "[debug] read_thread(): %d av_read_frame: %d pts: %7.3f index: %d (A: %d V: %d S: %d)\n",is->slotinfo->slotid,ret,pktpts,pkt->stream_index,is->audio_stream,is->video_stream,is->subtitle_stream);
         }
@@ -6823,7 +6849,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
             usleep(100000);/* wait for user event */
             et=xplayer_clock();
             wtime+=et-st;
-            readpass(is, 5);
+            readpass(is, 5, -1);
             continue;
         } else {
             if(clearpause) {
@@ -6837,6 +6863,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
             av_free_packet(pkt);
             continue;
         }
+        readpass(is, -1, 15);
         /* check if packet is in play range specified by user, then queue, otherwise discard */
         pkt_in_play_range = is->slotinfo->duration == AV_NOPTS_VALUE ||
                 (pkt->pts - ic->streams[pkt->stream_index]->start_time) *
@@ -6854,7 +6881,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
             av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): drop readed packet %d (A: %d V: %d S: %d)\n",pkt->stream_index,is->audio_stream,is->video_stream,is->subtitle_stream);
             av_free_packet(pkt);
         }
-        readpass(is, 6);
+        readpass(is, 6, -1);
     }
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): read stream: %d end1 '%s' \n",is->slotinfo->slotid,is->filename);

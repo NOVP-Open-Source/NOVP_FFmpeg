@@ -84,6 +84,7 @@ typedef struct {
     double readpts;
     int readno;
     int readpass;
+    int readpassid;
     double speed;
 } slotdebug_t;
 
