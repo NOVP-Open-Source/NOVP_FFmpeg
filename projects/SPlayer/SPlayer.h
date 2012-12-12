@@ -93,6 +93,7 @@ public:
     void SetScale(const std::string&);
     std::string GetHRef();
     void SetHRef(const std::string&);
+    std::string GetQuickTimeVersion();
 /// ------------------------------------------------
 
     void setWindow(FB::PluginWindow*);
@@ -157,6 +158,7 @@ private:
     bool m_controller;
     std::string m_scale;
     std::string m_href;
+    std::string m_qver;
 
 };
 

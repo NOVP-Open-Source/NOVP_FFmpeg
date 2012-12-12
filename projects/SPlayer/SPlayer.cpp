@@ -46,6 +46,7 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
   , m_controller(false)
   , m_scale("")
   , m_href("")
+  , m_qver("1.0.0")
 
 {
 
@@ -108,6 +109,7 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
     registerMethod  ("GetMute",                 make_method  (this, &SPlayer::GetMute));
     registerMethod  ("SetResetPropertiesOnReload", make_method  (this, &SPlayer::SetResetPropertiesOnReload));
     registerMethod  ("GetResetPropertiesOnReload", make_method  (this, &SPlayer::GetResetPropertiesOnReload));
+    registerMethod  ("GetQuickTimeVersion",     make_method  (this, &SPlayer::GetQuickTimeVersion));
 
 //    registerEvent   ("onqt_progress");
 //    registerEvent   ("onTestEvent");
@@ -745,6 +747,11 @@ void SPlayer::SetHRef(const std::string& val)
 {
     plugincall(slotId, 55);
     m_href = val;
+}
+
+std::string SPlayer::GetQuickTimeVersion()
+{
+    return m_qver;
 }
 
 void SPlayer::EventProcess()
