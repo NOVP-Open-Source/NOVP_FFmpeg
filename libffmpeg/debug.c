@@ -94,7 +94,7 @@ slotdebug_t* debugmem_getslot(void* dmem)
 
     if(!dmem)
         return NULL;
-    return debug->maindebug->slot;
+    return (slotdebug_t*)debug->maindebug->slot;
 }
 
 void debugmem_close(void* dmem)

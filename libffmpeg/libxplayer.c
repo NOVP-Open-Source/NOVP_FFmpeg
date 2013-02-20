@@ -26,8 +26,6 @@
 #define VIDEO_BUFFER            1
 #define AUDIO_BUFFER            2
 
-static unsigned char inited = 0;
-
 typedef struct {
     char*               filename;
 

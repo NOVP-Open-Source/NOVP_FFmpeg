@@ -95,7 +95,7 @@ static int device_num = 0;                ///wanted device number
 static GUID device;                       ///guid of the device
 
 /***************************************************************************************/
-int af_fmt2bits(int format) {
+static int loc_af_fmt2bits(int format) {
     if (AF_FORMAT_IS_AC3(format)) return 16;
     return (format & AF_FORMAT_BITS_MASK)+8;
 //    return (((format & AF_FORMAT_BITS_MASK)>>3)+1) * 8;
@@ -151,7 +151,7 @@ static struct {
     { NULL, 0 }
 };
 
-const char *af_fmt2str_short(int format)
+static const char *loc_af_fmt2str_short(int format)
 {
     int i;
 
@@ -393,7 +393,7 @@ static int write_buffer(aoconf_t* aoconf, unsigned char *data, int len)
   	    int i, j;
   	    int numsamp,sampsize;
 
-  	    sampsize = af_fmt2bits(aoconf->ao_data.format)>>3; // bytes per sample
+  	    sampsize = loc_af_fmt2bits(aoconf->ao_data.format)>>3; // bytes per sample
   	    numsamp = dwBytes1 / (aoconf->ao_data.channels * sampsize);  // number of samples for each channel in this buffer
 
   	    for( i = 0; i < numsamp; i++ ) for( j = 0; j < aoconf->ao_data.channels; j++ ) {
@@ -506,16 +506,16 @@ aoconf_t* audio_init(int rate, int channels, int format, int flags)
 		case AF_FORMAT_U8:
 			break;
 		default:
-			printmsg(aoconf,"ao_dsound: format %s not supported defaulting to Signed 16-bit Little-Endian\n",af_fmt2str_short(format));
+			printmsg(aoconf,"ao_dsound: format %s not supported defaulting to Signed 16-bit Little-Endian\n",loc_af_fmt2str_short(format));
 			format=AF_FORMAT_S16_LE;
 	}
 	//fill global ao_data
 	aoconf->ao_data.channels = channels;
 	aoconf->ao_data.samplerate = rate;
 	aoconf->ao_data.format = format;
-	aoconf->ao_data.bps = channels * rate * (af_fmt2bits(format)>>3);
+	aoconf->ao_data.bps = channels * rate * (loc_af_fmt2bits(format)>>3);
 	if(aoconf->ao_data.buffersize==-1) aoconf->ao_data.buffersize = aoconf->ao_data.bps; // space for 1 sec
-	printmsg(aoconf,"ao_dsound: Samplerate:%iHz Channels:%i Format:%s\n", rate, channels, af_fmt2str_short(format));
+	printmsg(aoconf,"ao_dsound: Samplerate:%iHz Channels:%i Format:%s\n", rate, channels, loc_af_fmt2str_short(format));
 	printmsg(aoconf,"ao_dsound: Buffersize:%d bytes (%d msec)\n", aoconf->ao_data.buffersize, aoconf->ao_data.buffersize / aoconf->ao_data.bps * 1000);
 
 	//fill waveformatex
@@ -529,7 +529,7 @@ aoconf_t* audio_init(int rate, int channels, int format, int flags)
 		wformat.Format.nBlockAlign     = 4;
 	} else {
 		wformat.Format.wFormatTag      = (channels > 2) ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
-		wformat.Format.wBitsPerSample  = af_fmt2bits(format);
+		wformat.Format.wBitsPerSample  = loc_af_fmt2bits(format);
 		wformat.Format.nBlockAlign     = wformat.Format.nChannels * (wformat.Format.wBitsPerSample >> 3);
 	}
 

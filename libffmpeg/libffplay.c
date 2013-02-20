@@ -19,8 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#warning FIXME!!!
-#define CONFIG_RTSP_DEMUXER 1
+
 #define THREAD_DEBUG 1
 #define DEBUG_DIVIMGSIZE 1
 #define NOWAIT_ENDOF_SLOTPROCESS 1
@@ -38,7 +37,7 @@
 #define GLOBAL_PAUSE_LIMIT      0.4
 #define SEEK_PRECISION          0.04
 
-#include "config.h"
+
 #include <inttypes.h>
 #include <math.h>
 #include <limits.h>
@@ -96,6 +95,14 @@ static unsigned int mpi_free = 0;
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "config.h"
+#include "ffmpeg_config.h"
+#undef CONFIG_AVFILTER
+
+#ifdef __MINGW32__
+#undef THREAD_DEBUG
+#endif
 
 #ifdef USE_WAV_DUMP
 #include "wav.h"
@@ -164,11 +171,6 @@ void av_log_callback(void* ptr, int level, const char* fmt, va_list vl)
     vsnprintf(line + strlen(line), sizeof(line) - strlen(line), fmt, vl);
 
     print_prefix = strlen(line) && line[strlen(line) - 1] == '\n';
-
-#if HAVE_ISATTY
-    if (!is_atty)
-        is_atty = isatty(2) ? 1 : -1;
-#endif
 
     if (count > 0) {
         fprintf(stderr, "    Last message repeated %d times\n", count);
@@ -351,6 +353,7 @@ static void master_init(int callerid) {
 //        do_exit(NULL);
     }
     pthread_create(&xplayer_global_status->thread, NULL, audio_process, xplayer_global_status);
+    xplayer_global_status->threadinited=1;
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] master_init(): pthread_create: #159 master 0x%x \n",(unsigned int)&xplayer_global_status->thread);
 #endif
@@ -911,8 +914,9 @@ void xplayer_API_done() {
 #ifdef DEBUG_DONE
             av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Wait for done slot: %d\n",slotinfo->slotid);
 #endif
-            if(slotinfo->thread)
+            if(slotinfo->threadinited)
                 pthread_join(slotinfo->thread, NULL);
+            slotinfo->threadinited=0;
 #ifdef DEBUG_DONE
             av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Done slot: %d\n",slotinfo->slotid);
 #endif
@@ -946,8 +950,9 @@ void xplayer_API_done() {
 #ifdef DEBUG_DONE
         av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Wait for global thread...\n");
 #endif
-        if(xplayer_global_status->thread)
+        if(xplayer_global_status->threadinited)
              pthread_join(xplayer_global_status->thread, NULL);
+         xplayer_global_status->threadinited=0;
 #ifdef DEBUG_DONE
         av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Done global thread...\n");
 #endif
@@ -1139,8 +1144,9 @@ void xplayer_API_slotfree(int slot) {
     return;
 #endif
 //    pthread_mutex_lock(&xplayer_global_status->mutex);
-    if(slotinfo->thread)
+    if(slotinfo->threadinited)
         pthread_join(slotinfo->thread, NULL);
+    slotinfo->threadinited=0;
     pthread_mutex_lock(&xplayer_global_status->mutex);
     next=slotinfo->next;
     prev=slotinfo->prev;
@@ -1373,8 +1379,9 @@ int xplayer_API_loadurl(int slot, char* url) {
         slotinfo->pauseafterload=1;
         slotinfo->reopen=0;
     }
-    if(!slotinfo->status && !slotinfo->thread) {
+    if(!slotinfo->status && !slotinfo->threadinited) {
         pthread_create(&slotinfo->thread, NULL, player_process, slotinfo);
+        slotinfo->threadinited=1;
 #ifdef THREAD_DEBUG
         av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_loadurl(): pthread_create: #691 slot: %d 0x%x \n",slotinfo->slotid,(unsigned int)slotinfo->thread);
 #endif
@@ -2355,8 +2362,10 @@ typedef struct VideoState {
     int w;
     int h;
 
+    int read_tidinited;
     pthread_t read_tid;
     pthread_t video_tid;
+    int refresh_tidinited;
     pthread_t refresh_tid;
     AVInputFormat *iformat;
     int no_background;
@@ -3152,13 +3161,15 @@ static void stream_close(VideoState *is)
     slotinfo_t* slotinfo = is->slotinfo;
     is->audio_exit_flag=1;
     is->slotinfo->status&=~(STATUS_PLAYER_IMAGE|STATUS_PLAYER_CONNECT|STATUS_PLAYER_PAUSE|STATUS_PLAYER_SEEK);
-    if(is->read_tid)
+    if(is->read_tidinited)
         pthread_join(is->read_tid, NULL);
+    is->read_tidinited=0;
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] stream_close(): join refresh thread: slot: %d %x ...\n",is->slotinfo->slotid,(unsigned int)is->refresh_tid);
 #endif
-    if(is->refresh_tid)
+    if(is->refresh_tidinited)
         pthread_join(is->refresh_tid, NULL);
+    is->refresh_tidinited=0;
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] stream_close(): join refresh thread: slot: %d %x OK\n",is->slotinfo->slotid,(unsigned int)is->refresh_tid);
 #endif
@@ -5395,7 +5406,9 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
     int wlen,dlen;
     af_data_t* adata = NULL;
     af_data_t* af_data = NULL;
+#if 0
     event_t event;
+#endif
     char info[8192];
     int ptsvalid = 1;
     double oldclock,newclock,diffclock,diffiter;
@@ -6457,6 +6470,7 @@ static void* read_thread(void *arg)
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): create refresh thread: %d ----\n",is->slotinfo->slotid);
 #endif
     pthread_create(&is->refresh_tid, NULL, refresh_thread, is);
+    is->refresh_tidinited=1;
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): pthread_create: #4736 slot: %d 0x%x \n",is->slotinfo->slotid,(unsigned int)is->refresh_tid);
     av_log(NULL, AV_LOG_DEBUG,"[debug] read_thread(): create refresh thread: %d OK ----\n",is->slotinfo->slotid);
@@ -6925,7 +6939,8 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
     if (is->subtitle_stream >= 0)
         stream_component_close(is, is->subtitle_stream);
     if (is->ic) {
-        av_close_input_file(is->ic);
+//        av_close_input_file(is->ic);
+        avformat_close_input(&is->ic);
         is->ic = NULL; /* safety */
     }
 //    avio_set_interrupt_cb(NULL);
@@ -7005,11 +7020,12 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
     av_log(NULL, AV_LOG_DEBUG,"[debug] stream_open(): create read thread: %d ----\n",slotinfo->slotid);
 #endif
     pthread_create(&is->read_tid, NULL, read_thread, is);
+    is->read_tidinited=1;
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] stream_open(): pthread_create: #4998 slot: %d 0x%x \n",is->slotinfo->slotid,(unsigned int)is->read_tid);
     av_log(NULL, AV_LOG_DEBUG,"[debug] stream_open(): create read thread: %d OK ----\n",slotinfo->slotid);
 #endif
-    if (!is->read_tid) {
+    if (!is->read_tidinited) {
 #ifdef USE_WAV_DUMP
         if(is->fhwav1) {
             update_wav_header(is->fhwav1,is->wav1size);

@@ -46,9 +46,17 @@ target_link_libraries(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libavutil.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libavfilter.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libavformat.lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libswresample.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/libmsys/libmingwex.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/libmsys/libgcc.lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../..//pthread/x86/pthreadVC2.lib
     )
+
+# IF(${_MACHINE_ARCH_FLAG} MATCHES X86)
+  SET (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
+  SET (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
+  SET (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+# ENDIF()
 
 set(WIX_HEAT_FLAGS
     -gg                 # Generate GUIDs

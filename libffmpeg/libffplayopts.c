@@ -68,6 +68,7 @@ AVDictionary *filter_codec_opts(AVDictionary *opts, AVCodec *codec, AVFormatCont
     case AVMEDIA_TYPE_VIDEO:    prefix = 'v'; flags |= AV_OPT_FLAG_VIDEO_PARAM;    break;
     case AVMEDIA_TYPE_AUDIO:    prefix = 'a'; flags |= AV_OPT_FLAG_AUDIO_PARAM;    break;
     case AVMEDIA_TYPE_SUBTITLE: prefix = 's'; flags |= AV_OPT_FLAG_SUBTITLE_PARAM; break;
+    default: break;
     }
 
     while ((t = av_dict_get(opts, "", t, AV_DICT_IGNORE_SUFFIX))) {

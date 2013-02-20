@@ -111,6 +111,7 @@ struct slotinfo_st {
     video_info_t        video_info;
     audio_info_t        audio_info;
 
+    int                 threadinited;
     pthread_t           thread;
     pthread_mutex_t     mutex;
 
@@ -205,6 +206,7 @@ typedef struct {
     int                 forcevolume;
 
     pthread_mutex_t     audiomutex;
+    int                 threadinited;
     pthread_t           thread;
 } xplayer_global_status_t;
 

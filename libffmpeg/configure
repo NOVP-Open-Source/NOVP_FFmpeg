@@ -62,9 +62,9 @@ compile_check() {
   echo >> "$TMPLOG"
   cat "$1" >> "$TMPLOG"
   echo >> "$TMPLOG"
-  echo "$_cc $CFLAGS $extra_cflags $_ld_static $extra_ldflags $libs_mplayer $libs_mencoder -o $TMPEXE $@" >> "$TMPLOG"
+  echo "$_cc $CFLAGS $extra_cflags $_ld_static $extra_ldflags -o $TMPEXE $@" >> "$TMPLOG"
   rm -f "$TMPEXE"
-  $_cc $CFLAGS $extra_cflags $_ld_static $extra_ldflags $libs_mplayer $libs_mencoder -o "$TMPEXE" "$@" >> "$TMPLOG" 2>&1
+  $_cc $CFLAGS $extra_cflags $_ld_static $extra_ldflags -o "$TMPEXE" "$@" >> "$TMPLOG" 2>&1
   TMPRES="$?"
   echo >> "$TMPLOG"
   echo >> "$TMPLOG"
@@ -231,221 +231,13 @@ _yasm=yasm
 _runtime_cpudetection=no
 _cross_compile=auto
 _prefix="/usr/local"
-_libavutil_a=auto
-_libavutil_so=auto
-_libavcodec_a=auto
-_libopencore_amrnb=auto
-_libopencore_amrwb=auto
-_libavcodec_so=auto
-_libavformat_a=auto
-_libavformat_so=auto
-_libpostproc_a=auto
-_libpostproc_so=auto
-_libswscale_a=auto
-_libswscale_so=auto
-_libavcodec_mpegaudio_hp=yes
-_mencoder=yes
-_mplayer=yes
-_x11=auto
-_xshape=auto
-_xss=auto
-_dga1=auto
-_dga2=auto
-_xv=auto
-_xvmc=no  #auto when complete
-_vdpau=auto
-_sdl=auto
-_kva=auto
-_direct3d=auto
-_directx=auto
-_win32waveout=auto
-_nas=auto
-_png=auto
-_mng=auto
-_jpeg=auto
-_pnm=yes
-_md5sum=yes
-_yuv4mpeg=yes
-_gif=auto
-_gl=auto
-matrixview=yes
-_ggi=auto
-_ggiwmh=auto
-_aa=auto
-_caca=auto
-_svga=auto
-_vesa=auto
-_fbdev=auto
-_dvb=auto
-_dxr2=auto
-_dxr3=auto
-_ivtv=auto
-_v4l2=auto
-_iconv=auto
-_langinfo=auto
-_rtc=auto
-_ossaudio=auto
-_arts=auto
-_esd=auto
-_pulse=auto
-_jack=auto
-_kai=auto
-_dart=auto
-_openal=auto
-_libcdio=auto
-_liblzo=auto
-_mad=auto
-_mp3lame=auto
-_mp3lame_lavc=auto
-_toolame=auto
-_twolame=auto
-_tremor=auto
-_tremor_internal=yes
-_tremor_low=no
-_libvorbis=auto
-_speex=auto
-_theora=auto
-_mp3lib=auto
-_liba52=auto
-_liba52_internal=no
-_libdca=auto
-_libmpeg2=auto
-_faad=auto
-_faad_internal=auto
-_faad_fixed=no
-_faac=auto
-_faac_lavc=auto
-_ladspa=auto
-_libbs2b=auto
-_xmms=no
-_vcd=auto
-_dvdnav=auto
-_dvdnavconfig=dvdnav-config
-_dvdreadconfig=dvdread-config
-_dvdread=auto
-_dvdread_internal=auto
-_libdvdcss_internal=auto
-_xanim=auto
-_real=auto
-_live=auto
-_nemesi=auto
-_native_rtsp=yes
-_xinerama=auto
-_mga=auto
-_xmga=auto
-_vm=auto
-_xf86keysym=auto
-_mlib=no #broken, thus disabled
-_sgiaudio=auto
-_sunaudio=auto
-_alsa=auto
-_fastmemcpy=yes
-hardcoded_tables=no
-_unrar_exec=auto
+
 _win32dll=auto
-_select=yes
-_radio=no
-_radio_capture=no
-_radio_v4l=auto
-_radio_v4l2=auto
-_radio_bsdbt848=auto
-_tv=yes
-_tv_v4l1=auto
-_tv_v4l2=auto
-_tv_bsdbt848=auto
-_tv_dshow=auto
-_pvr=auto
-_network=yes
-_winsock2_h=auto
-_struct_addrinfo=auto
-_getaddrinfo=auto
-_struct_sockaddr_storage=auto
-_smb=auto
-_vidix=auto
-_vidix_pcidb=yes
-_dhahelper=no
-_svgalib_helper=no
-_joystick=no
-_xvid=auto
-_xvid_lavc=auto
-_x264=auto
-_x264_lavc=auto
-_libdirac_lavc=auto
-_libschroedinger_lavc=auto
-_libnut=auto
-_lirc=auto
-_lircc=auto
-_apple_remote=auto
-_apple_ir=auto
-_gui=no
-_gtk1=no
-_termcap=auto
-_termios=auto
-_3dfx=no
-_s3fb=no
-_wii=no
-_tdfxfb=no
-_tdfxvid=no
-_xvr100=auto
-_tga=yes
-_directfb=auto
-_zr=auto
-_bl=no
-_largefiles=yes
-#language=en
 _shm=auto
-_linux_devfs=no
-_charset="UTF-8"
-_dynamic_plugins=no
-_crash_debug=no
-_sighandler=yes
-_libdv=auto
-_cdparanoia=auto
-_cddb=auto
 _big_endian=auto
-_bitmap_font=yes
-_freetype=auto
-_fontconfig=auto
-_menu=no
-_qtx=auto
-_maemo=auto
-_coreaudio=auto
-_corevideo=auto
-_quartz=auto
-quicktime=auto
-_macosx_finder=no
-_macosx_bundle=auto
-_sortsub=yes
-_freetypeconfig='freetype-config'
-_fribidi=auto
-_fribidiconfig='fribidi-config'
-_enca=auto
-_inet6=auto
-_gethostbyname2=auto
-_ftp=yes
-_musepack=auto
-_vstream=auto
 _pthreads=auto
 _w32threads=auto
-_ass=auto
-ass_internal=yes
-_rpath=no
-_semaphore=auto
 _asmalign_pot=auto
-_stream_cache=yes
-_priority=no
-def_dos_paths="#define HAVE_DOS_PATHS 0"
-def_stream_cache="#define CONFIG_STREAM_CACHE 1"
-def_priority="#undef CONFIG_PRIORITY"
-def_pthread_cache="#undef PTHREAD_CACHE"
-_need_shmem=yes
-
-# Atmos: moved this here, to be correct, if --prefix is specified
-test -z "$_bindir"  && _bindir="$_prefix/bin"
-test -z "$_datadir" && _datadir="$_prefix/share/mplayer"
-test -z "$_mandir"  && _mandir="$_prefix/share/man"
-test -z "$_confdir" && _confdir="$_prefix/etc/mplayer"
-test -z "$_libdir"  && _libdir="$_prefix/lib"
 
 # Determine our OS name and CPU architecture
 if test -z "$_target" ; then
@@ -574,21 +366,13 @@ if win32 ; then
   extra_ldflags="$extra_ldflags -lwinmm"
   _pe_executable=yes
   _timer=timer-win2.c
-  _priority=yes
-  def_dos_paths="#define HAVE_DOS_PATHS 1"
-  def_priority="#define CONFIG_PRIORITY 1"
 fi
 
 if mingw32 ; then
   _getch=getch2-win.c
-  _need_shmem=no
 fi
 
 if amigaos ; then
-  _select=no
-  _sighandler=no
-  _stream_cache=no
-  def_stream_cache="#undef CONFIG_STREAM_CACHE"
   extra_cflags="-DNEWLIB -D__USE_INLINE__ $extra_cflags"
 fi
 
@@ -599,10 +383,6 @@ fi
 if os2 ; then
   _exesuf=".exe"
   _getch=getch2-os2.c
-  _need_shmem=no
-  _priority=yes
-  def_dos_paths="#define HAVE_DOS_PATHS 1"
-  def_priority="#define CONFIG_PRIORITY 1"
 fi
 
 for I in "$TMPDIR" "$TEMPDIR" "/tmp" ; do
@@ -611,11 +391,11 @@ done
 
 
 TMPLOG="configure.log"
-TMPC="$I/mplayer-conf-$RANDOM-$$.c"
-TMPCPP="$I/mplayer-conf-$RANDOM-$$.cpp"
-TMPEXE="$I/mplayer-conf-$RANDOM-$$$_exesuf"
-TMPH="$I/mplayer-conf-$RANDOM-$$.h"
-TMPS="$I/mplayer-conf-$RANDOM-$$.S"
+TMPC="$I/libffmpeg-conf-$RANDOM-$$.c"
+TMPCPP="$I/libffmpeg-conf-$RANDOM-$$.cpp"
+TMPEXE="$I/libffmpeg-conf-$RANDOM-$$$_exesuf"
+TMPH="$I/libffmpeg-conf-$RANDOM-$$.h"
+TMPS="$I/libffmpeg-conf-$RANDOM-$$.S"
 
 rm -f "$TMPLOG"
 echo configuration: $_configuration > "$TMPLOG"
@@ -812,7 +592,7 @@ EOF
         eval _$2=no
         echores "failed"
         echo "It seems that your kernel does not correctly support $2."
-        echo "To use $2 extensions in MPlayer, you have to upgrade/recompile your kernel!"
+        echo "To use $2 extensions in libffmpeg, you have to upgrade/recompile your kernel!"
         return 1
       fi
     fi
@@ -1470,7 +1250,7 @@ EOF
 
   *)
     echo "The architecture of your CPU ($host_arch) is not supported by this configure script"
-    echo "It seems nobody has ported MPlayer to your OS or CPU type yet."
+    echo "It seems nobody has ported libffmpeg to your OS or CPU type yet."
     die "unsupported architecture $host_arch"
     ;;
 esac # case "$host_arch" in
@@ -1968,68 +1748,6 @@ if x86_32 && linux ; then
   fi
 fi
 
-######################
-# MAIN TESTS GO HERE #
-######################
-
-
-echocheck "-lposix"
-cat > $TMPC <<EOF
-int main(void) { return 0; }
-EOF
-if cc_check -lposix ; then
-  extra_ldflags="$extra_ldflags -lposix"
-  echores "yes"
-else
-  echores "no"
-fi
-
-echocheck "-lm"
-cat > $TMPC <<EOF
-int main(void) { return 0; }
-EOF
-if cc_check -lm ; then
-  _ld_lm="-lm"
-  echores "yes"
-else
-  _ld_lm=""
-  echores "no"
-fi
-
-for func in exp2 exp2f llrint log2 log2f lrint lrintf round roundf truncf; do
-echocheck $func
-cat > $TMPC << EOF
-#include <math.h>
-int main(void) { long (*foo)(float); foo = $func; (void)(*foo)(0.0); return 0; }
-EOF
-eval _$func=no
-cc_check -D_ISOC99_SOURCE $_ld_lm && eval _$func=yes
-if eval test "x\$_$func" = "xyes"; then
-  eval def_$func="\"#define HAVE_$(echo $func | tr '[a-z]' '[A-Z]') 1\""
-  echores yes
-else
-  eval def_$func="\"#define HAVE_$(echo $func | tr '[a-z]' '[A-Z]') 0\""
-  echores no
-fi
-done
-
-echocheck "dynamic loader"
-cat > $TMPC << EOF
-#include <stddef.h>
-#include <dlfcn.h>
-int main(void) { dlopen("", 0); dlclose(NULL); dlsym(NULL, ""); return 0; }
-EOF
-_dl=no
-for _ld_tmp in "" "-ldl" ; do
-  cc_check $_ld_tmp && _ld_dl="$_ld_tmp" && _dl=yes && break
-done
-if test "$_dl" = yes ; then
-  def_dl='#define HAVE_LIBDL 1'
-else
-  def_dl='#undef HAVE_LIBDL'
-fi
-echores "$_dl"
-
 def_threads='#define HAVE_THREADS 0'
 
 echocheck "pthread"
@@ -2058,249 +1776,11 @@ if test "$_pthreads" = yes ; then
   def_threads='#define HAVE_THREADS 1'
   extra_cflags="$extra_cflags $THREAD_CFLAGS"
 else
-  _res_comment="v4l, v4l2, ao_nas, win32 loader disabled"
+  _res_comment="win32 loader disabled"
   def_pthreads='#undef HAVE_PTHREADS'
-  _nas=no ; _tv_v4l1=no ; _tv_v4l2=no
   mingw32 || _win32dll=no
 fi
 echores "$_pthreads"
-
-echocheck "inttypes.h (required)"
-cat > $TMPC << EOF
-#include <inttypes.h>
-int main(void) { return 0; }
-EOF
-_inttypes=no
-cc_check && _inttypes=yes
-echores "$_inttypes"
-
-if test "$_inttypes" = no ; then
-  echocheck "bitypes.h (inttypes.h predecessor)"
-  cat > $TMPC << EOF
-#include <sys/bitypes.h>
-int main(void) { return 0; }
-EOF
-  cc_check && _inttypes=yes
-  if test "$_inttypes" = yes ; then
-    die "You don't have inttypes.h, but sys/bitypes.h is present. Please copy etc/inttypes.h into the include path, and re-run configure."
-  else
-    die "Cannot find header either inttypes.h or bitypes.h. There is no chance for compilation to succeed."
-  fi
-fi
-
-
-echocheck "int_fastXY_t in inttypes.h"
-cat > $TMPC << EOF
-#include <inttypes.h>
-int main(void) {
-volatile int_fast16_t v= 0;
-return v; }
-EOF
-_fast_inttypes=no
-cc_check && _fast_inttypes=yes
-if test "$_fast_inttypes" = no ; then
-  def_fast_inttypes='
-    typedef signed char int_fast8_t;
-    typedef signed int  int_fast16_t;
-    typedef signed int  int_fast32_t;
-    typedef signed long long int_fast64_t;
-    typedef unsigned char uint_fast8_t;
-    typedef unsigned int  uint_fast16_t;
-    typedef unsigned int  uint_fast32_t;
-    typedef unsigned long long uint_fast64_t;'
-fi
-echores "$_fast_inttypes"
-
-
-echocheck "malloc.h"
-cat > $TMPC << EOF
-#include <malloc.h>
-int main(void) { (void) malloc(0); return 0; }
-EOF
-_malloc=no
-cc_check && _malloc=yes
-if test "$_malloc" = yes ; then
-  def_malloc_h='#define HAVE_MALLOC_H 1'
-else
-  def_malloc_h='#define HAVE_MALLOC_H 0'
-fi
-# malloc.h emits a warning in FreeBSD and OpenBSD
-freebsd || openbsd || dragonfly && def_malloc_h='#define HAVE_MALLOC_H 0'
-echores "$_malloc"
-
-
-echocheck "memalign()"
-# XXX restrict to x86 ? extend to other CPUs/cacheline sizes ?
-def_memalign_hack='#define CONFIG_MEMALIGN_HACK 0'
-cat > $TMPC << EOF
-#include <malloc.h>
-int main(void) { (void) memalign(64, sizeof(char)); return 0; }
-EOF
-_memalign=no
-cc_check && _memalign=yes
-if test "$_memalign" = yes ; then
-  def_memalign='#define HAVE_MEMALIGN 1'
-else
-  def_memalign='#define HAVE_MEMALIGN 0'
-  def_map_memalign='#define memalign(a,b) malloc(b)'
-  darwin || def_memalign_hack='#define CONFIG_MEMALIGN_HACK 1'
-fi
-echores "$_memalign"
-
-
-echocheck "posix_memalign()"
-posix_memalign=no
-def_posix_memalign='#define HAVE_POSIX_MEMALIGN 0'
-cat > $TMPC << EOF
-#define _XOPEN_SOURCE 600
-#include <stdlib.h>
-int main(void) { posix_memalign(NULL, 0, 0); }
-EOF
-cc_check && posix_memalign=yes && def_posix_memalign='#define HAVE_POSIX_MEMALIGN 1'
-echores "$posix_memalign"
-
-
-echocheck "alloca.h"
-cat > $TMPC << EOF
-#include <alloca.h>
-int main(void) { (void) alloca(0); return 0; }
-EOF
-_alloca=no
-cc_check && _alloca=yes
-if cc_check ; then
-  def_alloca_h='#define HAVE_ALLOCA_H 1'
-else
-  def_alloca_h='#undef HAVE_ALLOCA_H'
-fi
-echores "$_alloca"
-
-
-echocheck "fastmemcpy"
-if test "$_fastmemcpy" = yes ; then
-  def_fastmemcpy='#define CONFIG_FASTMEMCPY 1'
-else
-  def_fastmemcpy='#undef CONFIG_FASTMEMCPY'
-fi
-echores "$_fastmemcpy"
-
-echocheck "X11 headers presence"
-  _x11_headers="no"
-  _res_comment="check if the dev(el) packages are installed"
-  for I in $(echo $extra_cflags | sed s/-I//g) /usr/include ; do
-    if test -f "$I/X11/Xlib.h" ; then
-      _x11_headers="yes"
-      _res_comment=""
-      break
-    fi
-  done
-  if test $_cross_compile = no; then
-    for I in /usr/X11/include /usr/X11R7/include /usr/local/include /usr/X11R6/include \
-             /usr/include/X11R6 /usr/openwin/include ; do
-      if test -f "$I/X11/Xlib.h" ; then
-        extra_cflags="$extra_cflags -I$I"
-        _x11_headers="yes"
-        _res_comment="using $I"
-        break
-      fi
-    done
-  fi
-echores "$_x11_headers"
-
-
-echocheck "X11"
-if test "$_x11" = auto && test "$_x11_headers" = yes ; then
-  cat > $TMPC <<EOF
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-int main(void) { (void) XCreateWindow(0,0,0,0,0,0,0,0,0,0,0,0); return 0; }
-EOF
-  for I in "" -L/usr/X11R7/lib -L/usr/local/lib -L/usr/X11R6/lib -L/usr/lib/X11R6 \
-           -L/usr/X11/lib -L/usr/lib32 -L/usr/openwin/lib -L/usr/local/lib64 -L/usr/X11R6/lib64 \
-           -L/usr/lib ; do
-    if netbsd; then
-      _ld_tmp="$I -lXext -lX11 $_ld_pthread -Wl,-R$(echo $I | sed s/^-L//)"
-    else
-      _ld_tmp="$I -lXext -lX11 $_ld_pthread"
-    fi
-    cc_check $_ld_tmp && libs_mplayer="$libs_mplayer $_ld_tmp" \
-                      && _x11=yes && break
-  done
-fi
-if test "$_x11" = yes ; then
-  def_x11='#define CONFIG_X11 1'
-  _vomodules="x11 xover $_vomodules"
-else
-  _x11=no
-  def_x11='#undef CONFIG_X11'
-  _novomodules="x11 $_novomodules"
-  _res_comment="check if the dev(el) packages are installed"
-  # disable stuff that depends on X
-  _xv=no ; _xvmc=no ; _xinerama=no ; _vm=no ; _xf86keysym=no ; _vdpau=no
-fi
-echores "$_x11"
-
-
-# make sure this stays below CoreVideo to avoid issues due to namespace
-# conflicts between -lGL and -framework OpenGL
-echocheck "OpenGL"
-#Note: this test is run even with --enable-gl since we autodetect linker flags
-if (test "$_x11" = yes || win32) && test "$_gl" != no ; then
-  cat > $TMPC << EOF
-#ifdef GL_WIN32
-#include <windows.h>
-#include <GL/gl.h>
-#else
-#include <GL/gl.h>
-#include <X11/Xlib.h>
-#include <GL/glx.h>
-#endif
-int main(void) {
-#ifdef GL_WIN32
-  HDC dc;
-  wglCreateContext(dc);
-#else
-  glXCreateContext(NULL, NULL, NULL, True);
-#endif
-  glFinish();
-  return 0;
-}
-EOF
-  _gl=no
-  for _ld_tmp in -lGL "-lGL -lXdamage" "-lGL $_ld_pthread" ; do
-    if cc_check $_ld_tmp $_ld_lm ; then
-      _gl=yes
-      _gl_x11=yes
-      libs_mplayer="$libs_mplayer $_ld_tmp $_ld_dl"
-      break
-    fi
-  done
-  if cc_check -DGL_WIN32 -lopengl32 ; then
-    _gl=yes
-    _gl_win32=yes
-    libs_mplayer="$libs_mplayer -lopengl32 -lgdi32"
-  fi
-else
-  _gl=no
-fi
-if test "$_gl" = yes ; then
-  def_gl='#define CONFIG_GL 1'
-  _res_comment="backends:"
-  if test "$_gl_win32" = yes ; then
-    def_gl_win32='#define CONFIG_GL_WIN32 1'
-    _res_comment="$_res_comment win32"
-  fi
-  if test "$_gl_x11" = yes ; then
-    def_gl_x11='#define CONFIG_GL_X11 1'
-    _res_comment="$_res_comment x11"
-  fi
-  _vomodules="opengl $_vomodules"
-else
-  def_gl='#undef CONFIG_GL'
-  def_gl_win32='#undef CONFIG_GL_WIN32'
-  def_gl_x11='#undef CONFIG_GL_X11'
-  _novomodules="opengl $_novomodules"
-fi
-echores "$_gl"
 
 echocheck "shm"
 if test "$_shm" = auto ; then
@@ -2320,47 +1800,15 @@ fi
 echores "$_shm"
 
 
-ff_config_enable () {
-_nprefix=$3;
-test -z "$_nprefix" && _nprefix='CONFIG'
-for part in $1; do
-  if $(echo $2 | grep -q -E "(^| )$part($| )"); then
-    echo "#define ${_nprefix}_$part 1"
-  else
-    echo "#define ${_nprefix}_$part 0"
-  fi
-done
-}
-
 cat > config.h <<EOF
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-/* CPU stuff */
-#define __CPU__ $iproc
-$def_words_endian
-$def_bigendian
-$(ff_config_enable "$_arch_all" "$_arch" "ARCH")
-$(ff_config_enable "$_cpuexts_all" "$_cpuexts" "HAVE")
-/* system-specific features */
 $def_asmalign_pot
-$def_dl
-$def_llrint
-$def_lrint
-$def_lrintf
-$def_round
-$def_roundf
-$def_truncf
-$def_threads
-$def_fastmemcpy
-$def_memalign_hack
-$def_mlib
-$def_mkstemp
-$def_posix_memalign
-$def_memalign_hack
-$def_gl_x11
 $def_shm
 
 #endif
 EOF
+
+rm -f "$TMPEXE" "$TMPC" "$TMPS" "$TMPCPP"
 

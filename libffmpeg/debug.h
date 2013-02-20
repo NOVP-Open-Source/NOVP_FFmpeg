@@ -8,6 +8,14 @@ extern "C" {
 
 #define USE_DEBUG_LIB           1
 
+
+#ifdef __CYGWIN32__
+#undef USE_DEBUG_LIB
+#endif
+#ifdef __MINGW32__
+#undef USE_DEBUG_LIB
+#endif
+
 #define DEFAULT_DEBUG_ID        4000
 #define MAX_DEBUG_SLOT          256
 #define MAX_DEBUG_APINUM        64

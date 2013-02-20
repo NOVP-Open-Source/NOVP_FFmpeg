@@ -1,6 +1,6 @@
 CC=gcc
 LD=gcc
-CFLAGS = -g -Wall -I. -I../FFmpeg
+CFLAGS = -g -Wall -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1
 FFCFLAGS = -I../FFmpeg $(shell sdl-config --cflags)
 LDFLAGS =
 LIBS = -lz -lm -lpthread $(shell sdl-config --libs) -lSDL_ttf
@@ -83,6 +83,13 @@ lib/libswresample.a: build-to-splugin.sh
 	cd "$$opwd"
 
 lib/libavdevice.a: build-to-splugin.sh
+	@echo 'Build ffmpeg...' ; \
+	opwd=`pwd` ; \
+	cd "$(FFMPEGDIR)" ; \
+	$$opwd/build-to-splugin.sh "$$opwd" ; \
+	cd "$$opwd"
+
+ffmpeg_config.h: build-to-splugin.sh
 	@echo 'Build ffmpeg...' ; \
 	opwd=`pwd` ; \
 	cd "$(FFMPEGDIR)" ; \

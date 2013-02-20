@@ -160,9 +160,6 @@ static af_data_t* play(af_priv_t* af,af_data_t *data) {
 }
 
 int af_init_format(af_priv_t* af,af_data_t *data) {
-    char buf1[256];
-    char buf2[256];
-
     af->data->rate = data->rate;
     af->data->nch = data->nch;
     af->data->format = af->format;
@@ -181,11 +178,6 @@ int af_init_format(af_priv_t* af,af_data_t *data) {
        (AF_OK != check_format(af->data->format)))
       return AF_ERROR;
 
-#if 0
-    av_log(NULL, AV_LOG_VERBOSE,"[format] Changing sample format from %s to %s\n",
-                  af_fmt2str(data->format,buf1,256),
-                  af_fmt2str(af->data->format,buf2,256));
-#endif
     af->data->rate = data->rate;
     af->data->nch  = data->nch;
     af->mul        = (double)af->data->bps / data->bps;
@@ -215,7 +207,7 @@ af_priv_t* af_open_format(int rate, int nch, int format, int bps) {
 }
 
 static inline uint32_t load24bit(void* data, int pos) {
-#if WORDS_BIGENDIAN
+#if HAVE_BIGENDIAN
     return (((uint32_t)((uint8_t*)data)[3*pos])<<24) |
            (((uint32_t)((uint8_t*)data)[3*pos+1])<<16) |
            (((uint32_t)((uint8_t*)data)[3*pos+2])<<8);
@@ -227,7 +219,7 @@ static inline uint32_t load24bit(void* data, int pos) {
 }
 
 static inline void store24bit(void* data, int pos, uint32_t expanded_value) {
-#if WORDS_BIGENDIAN
+#if HAVE_BIGENDIAN
       ((uint8_t*)data)[3*pos]=expanded_value>>24;
       ((uint8_t*)data)[3*pos+1]=expanded_value>>16;
       ((uint8_t*)data)[3*pos+2]=expanded_value>>8;
