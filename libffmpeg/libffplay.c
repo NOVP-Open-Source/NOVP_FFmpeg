@@ -37,6 +37,9 @@
 #define GLOBAL_PAUSE_LIMIT      0.4
 #define SEEK_PRECISION          0.04
 
+#include "config.h"
+#include "ffmpeg_config.h"
+#undef CONFIG_AVFILTER
 
 #include <inttypes.h>
 #include <math.h>
@@ -77,15 +80,13 @@ static unsigned int mpi_free = 0;
 #include <unistd.h>
 #include <assert.h>
 
-#include <pthread.h>
+//#include <pthread.h>
 
 #include "af.h"
 #include "afilter/format.h"
 #include "afilter/util.h"
 #include "libxplayer.h"
 #include "afilter/format.h"
-#include "libffplayopts.h"
-#include "libffplay.h"
 #include "fmt-conversion.h"
 #include "libavutil/log.h"
 
@@ -96,9 +97,16 @@ static unsigned int mpi_free = 0;
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "config.h"
-#include "ffmpeg_config.h"
-#undef CONFIG_AVFILTER
+#if HAVE_PTHREADS
+#include <pthread.h>
+#elif HAVE_W32THREADS
+#include "libavcodec/w32pthreads.h"
+#elif HAVE_OS2THREADS
+#include "libavcodec/os2threads.h"
+#endif 
+
+#include "libffplayopts.h"
+#include "libffplay.h"
 
 #ifdef __MINGW32__
 #undef THREAD_DEBUG
@@ -111,6 +119,7 @@ static unsigned int mpi_free = 0;
 int loglevel = 0;
 char* logfname = NULL;
 FILE* logfh = NULL;
+FILE* logsfh = NULL;
 
 typedef struct {
     int x;
@@ -130,6 +139,22 @@ void* dmem = NULL;
 
 const uint8_t extra_data[] = {
 	0x01, 0x42 ,0x00 ,0x29 ,0xff ,0xe1 ,0x00 ,0x14 ,0x67 ,0x42 ,0x00 ,0x29 ,0xe2 ,0x90 ,0x0f ,0x00 ,0x44 ,0xfc ,0xb8 ,0x0b ,0x70 ,0x10 ,0x10 ,0x1a ,0x41 ,0xe2 ,0x44 ,0x54 ,0x01 ,0x00 ,0x04 ,0x68 ,0xce ,0x3c ,0x80};
+
+#undef fprintf
+void slog(char *format_str, ...) {
+    va_list ap;
+    char line[8192];
+
+    if(!logsfh) {
+        if(!(logsfh=fopen(LOGSNAME,"w+")))
+            return;
+    }
+    va_start(ap,format_str);
+    (void)vsnprintf(line,sizeof(line),format_str,ap);
+    va_end(ap);
+    fprintf(logsfh,"%s",line);
+    fflush(logsfh);
+}
 
 static void sanitize(uint8_t *line){
     while(*line){
@@ -151,10 +176,12 @@ void av_log_callback(void* ptr, int level, const char* fmt, va_list vl)
     struct tm *ptm;
 
     AVClass* avc = ptr ? *(AVClass **) ptr : NULL;
-    if (level > av_log_get_level())
-        return;
+//    if (level > av_log_get_level())
+//        return;
     line[0] = 0;
 #undef fprintf
+#undef printf
+#undef time
     if (print_prefix && avc) {
         if (avc->parent_log_context_offset) {
             AVClass** parent = *(AVClass ***) (((uint8_t *) ptr) +
@@ -291,7 +318,7 @@ static int lockmgr(void **mtx, enum AVLockOp op)
 {
    switch(op) {
       case AV_LOCK_CREATE:
-          (*mtx) = malloc(sizeof(pthread_mutex_t));
+          (*mtx) = av_malloc(sizeof(pthread_mutex_t));
           pthread_mutex_init(*mtx, NULL);
           if(!(*mtx)) {
               return 1;
@@ -305,12 +332,13 @@ static int lockmgr(void **mtx, enum AVLockOp op)
           if(*mtx)
           {
                 pthread_mutex_destroy(*mtx);
-              free(*mtx);
+              av_free(*mtx);
           }
           return 0;
    }
    return 1;
 }
+
 
 static void master_init(int callerid) {
     char* env = NULL;
@@ -323,7 +351,7 @@ static void master_init(int callerid) {
 #ifdef USE_DEBUG_LIB
     dmem=debugmem_open(0);
 #endif
-    xplayer_global_status = malloc(sizeof(xplayer_global_status_t));
+    xplayer_global_status = av_malloc(sizeof(xplayer_global_status_t));
     memset(xplayer_global_status,0,sizeof(xplayer_global_status_t));
     pthread_mutex_init(&xplayer_global_mutex, NULL);
     pthread_mutex_init(&xplayer_global_status->mutex, NULL);
@@ -394,7 +422,7 @@ static slotinfo_t* init_slotinfo(int slot) {
     slotinfo_t* slotinfo;
 
     av_log(NULL, AV_LOG_DEBUG,"[debug] init_slotinfo(): alloc slotinfo: %d\n",slot);
-    slotinfo=malloc(sizeof(slotinfo_t));
+    slotinfo=av_malloc(sizeof(slotinfo_t));
     memset(slotinfo,0,sizeof(slotinfo_t));
     slotinfo->next=xplayer_global_status->slotinfo;
     if(slotinfo->next) {
@@ -440,6 +468,7 @@ static slotinfo_t* init_slotinfo(int slot) {
     xplayer_global_status->groups[0].used++;
     group_update_master(0);
     pthread_mutex_init(&slotinfo->mutex, NULL);
+    pthread_mutex_init(&slotinfo->audiomutex, NULL);
     pthread_cond_init(&slotinfo->freeable_cond, NULL);
     return slotinfo;
 }
@@ -538,12 +567,12 @@ static void audio_append(af_data_t* dest, af_data_t* src) {
     if(srcoffset<0) {
         srcoffset=0;
     }
-    tempdata=malloc(newlen);
+    tempdata=av_malloc(newlen);
     if(oldlen) {
         memcpy(tempdata,dest->audio+oldoffset,oldlen);
     }
     memcpy(tempdata+oldlen,src->audio+srcoffset,srclen);
-    free(dest->audio);
+    av_free(dest->audio);
     dest->audio=tempdata;
     dest->len=oldlen+srclen;
 }
@@ -651,7 +680,6 @@ static void *audio_process(void *data) {
         ftime/=alen;
         ml=af_round_len(xplayer_global_status->audio,ml);
         if(ml>=iterbytes) {
-
             ptimes=xplayer_clock();
             audiodebugpass(1);
 //            af_data=af_emptyfromdata(xplayer_global_status->audio, ml);
@@ -883,6 +911,7 @@ void xplayer_API_init(int log_level, const char* logfile) {
 
     xplayer_API_setlogfile(logfile);
     loglevel = envloglevel(loglevel);
+    av_log_set_level(loglevel);
     master_init(3);
 }
 
@@ -935,14 +964,14 @@ void xplayer_API_done() {
                 af_uninit(slotinfo->af);
             slotinfo->af=NULL;
 #ifdef DEBUG_DONE
-            av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): Free slot: %d\n",slotinfo->slotid);
+            av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_done(): av_free slot: %d\n",slotinfo->slotid);
 #endif
             oldgroup=slotinfo->groupid;
             xplayer_global_status->groups[oldgroup].used--;
             slotinfo->groupid=-1;
             if(xplayer_global_status->groups[oldgroup].master_slot==slotinfo->slotid)
                 group_update_master(oldgroup);
-            free(slotinfo);
+            av_free(slotinfo);
             slotinfo=nextslotinfo;
         }
         pthread_mutex_unlock(&xplayer_global_status->mutex);
@@ -961,7 +990,7 @@ void xplayer_API_done() {
         for(n=0;n<MAX_GROUPS;n++) {
             pthread_mutex_destroy(&xplayer_global_status->groups[n].pausemutex);
         }
-        free(xplayer_global_status);
+        av_free(xplayer_global_status);
         xplayer_global_status=NULL;
 
 #ifdef DEBUG_DONE
@@ -991,6 +1020,9 @@ void xplayer_API_done() {
     if(logfh)
         fclose(logfh);
     logfh=NULL;
+    if(logsfh)
+        fclose(logsfh);
+    logsfh=NULL;
 }
 
 void xplayer_API_setlogfile(const char* logfile)
@@ -1000,6 +1032,8 @@ void xplayer_API_setlogfile(const char* logfile)
     int i;
     struct stat st;
 
+//    if(!logfile || !strlen(logfile))
+//        return;
     if(!logfile || !strlen(logfile))
     {
         if(!logfname)
@@ -1083,7 +1117,7 @@ static void free_freeable_slot() {
                 slotinfo->groupid=-1;
                 if(xplayer_global_status->groups[oldgroup].master_slot==slotinfo->slotid)
                     group_update_master(oldgroup);
-                free(slotinfo);
+                av_free(slotinfo);
                 freeslot=1;
             }
             slotinfo=nextslotinfo;
@@ -1178,7 +1212,7 @@ void xplayer_API_slotfree(int slot) {
     slotinfo->groupid=-1;
     if(xplayer_global_status->groups[oldgroup].master_slot==slotinfo->slotid)
         group_update_master(oldgroup);
-    free(slotinfo);
+    av_free(slotinfo);
     updateloglevel(1);
     pthread_mutex_unlock(&xplayer_global_status->mutex);
 }
@@ -1259,7 +1293,7 @@ video_info_t* xplayer_API_getvideoformat(int slot) {
     if(!slotinfo->status) {
         return NULL;
     }
-    video_info_t* ret = malloc(sizeof(video_info_t));
+    video_info_t* ret = av_malloc(sizeof(video_info_t));
     memcpy(ret,(char*)&(slotinfo->video_info),sizeof(video_info_t));
     return ret;
 }
@@ -1269,7 +1303,7 @@ audio_info_t* xplayer_API_getaudioformat(int slot) {
     if(!slotinfo->status) {
         return NULL;
     }
-    audio_info_t* ret = malloc(sizeof(audio_info_t));
+    audio_info_t* ret = av_malloc(sizeof(audio_info_t));
     memcpy(ret,(char*)&(slotinfo->audio_info),sizeof(audio_info_t));
     return ret;
 }
@@ -1372,7 +1406,7 @@ int xplayer_API_loadurl(int slot, char* url) {
         }
     }
     if(slotinfo->url)
-        free(slotinfo->url);
+        av_free(slotinfo->url);
     slotinfo->url=strdup(url);
     if(url) {
         slotinfo->playflag=2;
@@ -1416,7 +1450,7 @@ int xplayer_API_unloadurl(int slot) {
     slotinfo->pauseflag=0;
     slotinfo->pauseafterload=0;
     if(slotinfo->url && slotinfo->status) {
-        free(slotinfo->url);
+        av_free(slotinfo->url);
         slotinfo->url=NULL;
         event.type = FF_STOP_EVENT;
         event.data = slotinfo->streampriv;
@@ -1472,7 +1506,6 @@ int xplayer_API_groupplay(int slot)
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     int ret = -1;
     event_t event;
-
 
     if((slotinfo->debugflag & DEBUGFLAG_GROUP)) {
         av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"API_GroupPlay(%d)\n",slot);
@@ -2154,7 +2187,7 @@ int xplayer_API_setvideocodec(int slot, char* name)
     pthread_mutex_lock(&slotinfo->mutex);
     ret = 0;
     if(slotinfo->video_codec_name)
-        free(slotinfo->video_codec_name);
+        av_free(slotinfo->video_codec_name);
     slotinfo->video_codec_name=NULL;
     if(name)
         slotinfo->video_codec_name=strdup(name);
@@ -2171,7 +2204,7 @@ int xplayer_API_setaudiocodec(int slot, char* name)
     apicall(slot, 37);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->audio_codec_name)
-        free(slotinfo->audio_codec_name);
+        av_free(slotinfo->audio_codec_name);
     slotinfo->audio_codec_name=NULL;
     if(name)
         slotinfo->audio_codec_name=strdup(name);
@@ -2189,7 +2222,7 @@ int xplayer_API_setsubtitlecodec(int slot, char* name)
     apicall(slot, 38);
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->subtitle_codec_name)
-        free(slotinfo->subtitle_codec_name);
+        av_free(slotinfo->subtitle_codec_name);
     slotinfo->subtitle_codec_name=NULL;
     if(name)
         slotinfo->subtitle_codec_name=strdup(name);
@@ -2554,12 +2587,6 @@ static int ispaused(VideoState *is)
     if((is->paused || is->local_paused) && !is->local_nopaused)
         return 1;
     return 0;
-}
-
-
-void av_noreturn exit_program(int ret)
-{
-    exit(ret);
 }
 
 static int packet_queue_put(VideoState *is, PacketQueue *q, AVPacket *pkt)
@@ -4931,14 +4958,14 @@ static void audio_add_to_buffer(VideoState *is, unsigned char* data, int data_si
         return;
     if(!is->audio_decode_buffer) {
         is->audio_decode_buffer_size=data_size+is->audio_decode_buffer_len;
-        is->audio_decode_buffer=malloc(is->audio_decode_buffer_size);
+        is->audio_decode_buffer=av_malloc(is->audio_decode_buffer_size);
     }
     if(is->audio_decode_buffer_len+data_size>is->audio_decode_buffer_size) {
         tmp = is->audio_decode_buffer;
         is->audio_decode_buffer_size=data_size+is->audio_decode_buffer_len;
-        is->audio_decode_buffer=malloc(is->audio_decode_buffer_size*2);
+        is->audio_decode_buffer=av_malloc(is->audio_decode_buffer_size*2);
         memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
-        free(tmp);
+        av_free(tmp);
         is->audio_decode_buffer_size*=2;
     }
     if(data)
@@ -5073,10 +5100,10 @@ static int audio_get_from_buffer(VideoState *is, unsigned char* data, int data_s
         is->audio_decode_buffer_len-=data_size;
     }
     if(is->audio_decode_buffer_len) {
-        tmp=malloc(is->audio_decode_buffer_len);
+        tmp=av_malloc(is->audio_decode_buffer_len);
         memcpy(tmp,is->audio_decode_buffer+data_size,is->audio_decode_buffer_len);
         memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
-        free(tmp);
+        av_free(tmp);
     }
     return data_size;
 }
@@ -5311,14 +5338,14 @@ static int audio_decode_frame(VideoState *is, AVPacket *pkt)
         pthread_mutex_lock(&is->audio_decode_buffer_mutex);
         if(!is->audio_decode_buffer) {
             is->audio_decode_buffer_size=resampled_data_size+is->audio_decode_buffer_len;
-            is->audio_decode_buffer=malloc(is->audio_decode_buffer_size);
+            is->audio_decode_buffer=av_malloc(is->audio_decode_buffer_size);
         }
         if(is->audio_decode_buffer_len+resampled_data_size>is->audio_decode_buffer_size) {
             tmp = is->audio_decode_buffer;
             is->audio_decode_buffer_size=resampled_data_size+is->audio_decode_buffer_len;
-            is->audio_decode_buffer=malloc(is->audio_decode_buffer_size*2);
+            is->audio_decode_buffer=av_malloc(is->audio_decode_buffer_size*2);
             memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
-            free(tmp);
+            av_free(tmp);
             is->audio_decode_buffer_size*=2;
         }
         if(last_clock || resampled_data_size) {
@@ -5373,7 +5400,7 @@ static void audio_decode_flush(VideoState *is)
 {
     pthread_mutex_lock(&is->audio_decode_buffer_mutex);
     if(is->audio_decode_buffer)
-        free(is->audio_decode_buffer);
+        av_free(is->audio_decode_buffer);
     is->audio_decode_buffer=NULL;
     is->audio_decode_buffer_len=0;
     is->audio_decode_buffer_size=0;
@@ -5515,10 +5542,10 @@ fprintf(stderr,"Slot: %d STOP!!!\n",is->slotinfo->slotid);
         if(dlen) {
             is->audio_decode_buffer_len-=dlen;
             if(is->audio_decode_buffer_len) {
-                tmp=malloc(is->audio_decode_buffer_len);
+                tmp=av_malloc(is->audio_decode_buffer_len);
                 memcpy(tmp,is->audio_decode_buffer+dlen,is->audio_decode_buffer_len);
                 memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
-                free(tmp);
+                av_free(tmp);
             }
             is->audio_drop-=dlen;
         }
@@ -5571,10 +5598,10 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
         is->audio_decode_buffer_len-=speedlen;
     }
     if(is->audio_decode_buffer_len) {
-        tmp=malloc(is->audio_decode_buffer_len);
+        tmp=av_malloc(is->audio_decode_buffer_len);
         memcpy(tmp,is->audio_decode_buffer+speedlen,is->audio_decode_buffer_len);
         memcpy(is->audio_decode_buffer,tmp,is->audio_decode_buffer_len);
-        free(tmp);
+        av_free(tmp);
     }
     memset(info,0,sizeof(info));
     clock=0.0;
@@ -6043,7 +6070,7 @@ static int stream_component_open(VideoState *is, int stream_index)
                     ppssize=extrasize-6-spssize;
                 }
                 if(spssize && ppssize) {
-                    extradata = malloc(11+spssize+ppssize);
+                    extradata = av_malloc(11+spssize+ppssize);
                     extradata[0] = 0x01;
                     extradata[1] = avctx->profile;
                     extradata[2] = 0x00;    /// Compatible: 0
@@ -6065,7 +6092,7 @@ static int stream_component_open(VideoState *is, int stream_index)
             }
             if(!extradata) {
                 if(extrasize) {
-                    extradata = malloc(extrasize);
+                    extradata = av_malloc(extrasize);
                     memcpy(extradata,avctx->extradata, extrasize);
                 }
             }
@@ -6075,7 +6102,7 @@ static int stream_component_open(VideoState *is, int stream_index)
             }
             int status = ff_vda_create_decoder(&is->vdactx, extradata, extrasize);
             if(extradata)
-                free(extradata);
+                av_free(extradata);
             if(!status) {
                 avctx->hwaccel_context = &is->vdactx;
                 is->usesvda=is->slotinfo->vda;
@@ -6973,7 +7000,6 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
         }
     }
 #endif
-
     is->run=1;
     is->slotinfo = slotinfo;
     if(slotinfo->reopen) {
@@ -7132,7 +7158,7 @@ static void event_loop(slotinfo_t* slotinfo)
         switch(event->type) {
         case FF_QUIT_EVENT:
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f Event: quit\n",is->slotinfo->slotid,get_master_clock(is));
-            free(event);
+            av_free(event);
             return;
             break;
         case FF_STOP_EVENT:
@@ -7280,7 +7306,7 @@ static void event_loop(slotinfo_t* slotinfo)
         default:
             break;
         }
-        free(event);
+        av_free(event);
     }
 }
 
@@ -7316,7 +7342,7 @@ static void *player_process(void *data)
     while(slotinfo->status) {
         if(safestrcmp(slotinfo->currenturl,slotinfo->url)) {
             if(slotinfo->currenturl) {
-                free(slotinfo->currenturl);
+                av_free(slotinfo->currenturl);
                 slotinfo->currenturl=NULL;
                 slotinfo->reopen=0;
             }
@@ -7344,9 +7370,9 @@ static void *player_process(void *data)
     slotinfo->status&=~(STATUS_PLAYER_INITED);
     /* never returns */
     if(slotinfo->url)
-        free(slotinfo->url);
+        av_free(slotinfo->url);
     if(slotinfo->opt_def)
-        free(slotinfo->opt_def);
+        av_free(slotinfo->opt_def);
     if(slotinfo->sws_opts)
         sws_freeContext(slotinfo->sws_opts);
     pthread_mutex_destroy(&slotinfo->mutex);

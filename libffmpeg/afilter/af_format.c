@@ -190,19 +190,21 @@ void af_uninit_format(af_priv_t* af) {
         return;
     if(af->data) {
         if(af->data->audio)
-            free(af->data->audio);
-        free(af->data);
+            av_free(af->data->audio);
+        av_free(af->data);
     }
-    free(af);
+    av_free(af);
 }
 
 af_priv_t* af_open_format(int rate, int nch, int format, int bps) {
-    af_priv_t* af = calloc(1,sizeof(af_priv_t));
+    af_priv_t* af = av_malloc(sizeof(af_priv_t));
+    memset(af,0,sizeof(af_priv_t));
 
     af->format=format;
     af->play=play;
     af->mul=1;
-    af->data=calloc(1,sizeof(af_data_t));
+    af->data=av_malloc(sizeof(af_data_t));
+    memset(af->data,0,sizeof(af_data_t));
     return af;
 }
 

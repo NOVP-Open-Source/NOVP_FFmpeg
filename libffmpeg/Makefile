@@ -3,7 +3,7 @@ LD=gcc
 CFLAGS = -g -Wall -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1
 FFCFLAGS = -I../FFmpeg $(shell sdl-config --cflags)
 LDFLAGS =
-LIBS = -lz -lm -lpthread $(shell sdl-config --libs) -lSDL_ttf
+LIBS = -lz -lm $(shell sdl-config --libs) -lSDL_ttf
 TARGETS = 
 
 FFMPEGDIR=../FFmpeg/

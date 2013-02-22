@@ -173,8 +173,8 @@ int af_init_resample(af_priv_t* af,af_data_t *data) {
     if(s->xq) {
         for(i=1;i<af->data->nch;i++)
             if(s->xq[i])
-                free(s->xq[i]);
-            free(s->xq);
+                av_free(s->xq[i]);
+            av_free(s->xq);
         s->xq = NULL;
     }
 
@@ -205,9 +205,9 @@ int af_init_resample(af_priv_t* af,af_data_t *data) {
     }
 
     // Create space for circular bufers
-    s->xq = malloc(n->nch*sizeof(void*));
+    s->xq = av_malloc(n->nch*sizeof(void*));
     for(i=0;i<n->nch;i++)
-        s->xq[i] = malloc(2*L*af->data->bps);
+        s->xq[i] = av_malloc(2*L*af->data->bps);
     s->xi = 0;
 
     // Check if the the design needs to be redone
@@ -224,10 +224,10 @@ int af_init_resample(af_priv_t* af,af_data_t *data) {
         // Calculate cuttof frequency for filter
         fc = 1/(float)(max(s->up,s->dn));
         // Allocate space for polyphase filter bank and protptype filter
-        w = malloc(sizeof(float) * s->up *L);
+        w = av_malloc(sizeof(float) * s->up *L);
         if(NULL != s->w)
-            free(s->w);
-        s->w = malloc(L*s->up*af->data->bps);
+            av_free(s->w);
+        s->w = av_malloc(L*s->up*af->data->bps);
 
         // Design prototype filter type using Kaiser window with beta = 10
         if(NULL == w || NULL == s->w ||
@@ -249,7 +249,7 @@ int af_init_resample(af_priv_t* af,af_data_t *data) {
                 wt++;
             }
         }
-        free(w);
+        av_free(w);
     }
 
     // Set multiplier and delay
@@ -312,21 +312,24 @@ void af_uninit_resample(af_priv_t* af) {
         return;
     if(af->data) {
         if(af->data->audio)
-            free(af->data->audio);
-        free(af->data);
+            av_free(af->data->audio);
+        av_free(af->data);
     }
     if(af->setup)
-        free(af->setup);
-    free(af);
+        av_free(af->setup);
+    av_free(af);
 }
 
 af_priv_t* af_open_resample(int rate, int nch, int format, int bps) {
-    af_priv_t* af = calloc(1,sizeof(af_priv_t));
+    af_priv_t* af = av_malloc(sizeof(af_priv_t));
+    memset(af,0,sizeof(af_priv_t));
 
     af->rate=rate;
     af->play=play;
     af->mul=1;
-    af->data=calloc(1,sizeof(af_data_t));
-    af->setup=calloc(1,sizeof(af_resample_t));
+    af->data=av_malloc(sizeof(af_data_t));
+    memset(af->data,0,sizeof(af_data_t));
+    af->setup=av_malloc(sizeof(af_resample_t));
+    memset(af->setup,0,sizeof(af_resample_t));
     return af;
 }

@@ -4,8 +4,10 @@
 
 #include "eventqueue.h"
 #include "libxplayer.h"
-#include "pthread.h"
+//#include "pthread.h"
 #include "af.h"
+
+#define LOGSNAME                "libffplay.log"
 
 #define MAX_IMAGES              256
 #define MAX_GROUPS              512

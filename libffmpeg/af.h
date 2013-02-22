@@ -2,6 +2,8 @@
 #ifndef __AF_H_
 #define __AF_H_
 
+#include "libavutil/mem.h"
+
 #define AF_DETACH   2
 #define AF_OK       1
 #define AF_TRUE     1

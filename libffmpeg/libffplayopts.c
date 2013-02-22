@@ -28,6 +28,9 @@
    Studio) will not omit unused inline functions and create undefined
    references to libraries that are not being built. */
 
+#include "ffmpeg_config.h"
+#undef CONFIG_AVFILTER
+#undef CONFIG_SWSCALE
 #include "config.h"
 //#include "../ffmpeg/config.h"
 #include "libavformat/avformat.h"
@@ -51,6 +54,15 @@
 #endif
 
 #include "libavutil/log.h"
+
+#if HAVE_PTHREADS
+#include <pthread.h>
+#elif HAVE_W32THREADS
+#include "libavcodec/w32pthreads.h"
+#elif HAVE_OS2THREADS
+#include "libavcodec/os2threads.h"
+#endif 
+
 #include "libffplayopts.h"
 
 AVDictionary *filter_codec_opts(AVDictionary *opts, AVCodec *codec, AVFormatContext *s, AVStream *st)
@@ -385,21 +397,21 @@ static int opt_codec(slotinfo_t* slotinfo, void *o, const char *opt, const char 
     switch(opt[strlen(opt)-1]){
     case 'a':
         if(slotinfo->audio_codec_name)
-            free(slotinfo->audio_codec_name);
+            av_free(slotinfo->audio_codec_name);
         slotinfo->audio_codec_name = NULL;
         if(arg && strlen(arg))
             slotinfo->audio_codec_name = strdup(arg);
         break;
     case 's':
         if(slotinfo->subtitle_codec_name)
-            free(slotinfo->subtitle_codec_name);
+            av_free(slotinfo->subtitle_codec_name);
         slotinfo->subtitle_codec_name = NULL;
         if(arg && strlen(arg))
             slotinfo->subtitle_codec_name = strdup(arg);
         break;
     case 'v':
         if(slotinfo->video_codec_name)
-            free(slotinfo->video_codec_name);
+            av_free(slotinfo->video_codec_name);
         slotinfo->video_codec_name = NULL;
         if(arg && strlen(arg))
             slotinfo->video_codec_name = strdup(arg);
@@ -412,7 +424,8 @@ void init_options(slotinfo_t* slotinfo)
 {
     slotinfo->sws_opts = sws_getContext(16, 16, 0, 16, 16, 0, SWS_BICUBIC, NULL, NULL, NULL);
 
-    OptionDef* opt = calloc(27,sizeof(OptionDef));
+    OptionDef* opt = av_malloc(27*sizeof(OptionDef));
+    memset(opt,0,27*sizeof(OptionDef));
 
     opt[0].name="ast";
     opt[0].flags=OPT_INT | HAS_ARG | OPT_EXPERT;

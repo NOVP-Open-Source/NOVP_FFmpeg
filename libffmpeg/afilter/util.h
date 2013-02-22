@@ -2,6 +2,7 @@
 #ifndef __UTIL_H_
 #define __UTIL_H_
 
+#include <stdint.h>
 #include "af.h"
 
 int64_t         ff_gcd(int64_t a, int64_t b);

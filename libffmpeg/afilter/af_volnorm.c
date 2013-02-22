@@ -244,14 +244,17 @@ static af_data_t* play(af_priv_t* af, af_data_t* data) {
 }
 
 af_priv_t* af_open_volnorm(int rate, int nch, int format, int bps, int upper, int method, float target) {
-    af_priv_t* af = calloc(1,sizeof(af_priv_t));
-    af_volnorm_t* s = (af_volnorm_t*)calloc(1,sizeof(af_volnorm_t));
+    af_priv_t* af = av_malloc(sizeof(af_priv_t));
+    memset(af,0,sizeof(af_priv_t));
+    af_volnorm_t* s = (af_volnorm_t*)av_malloc(sizeof(af_volnorm_t));
+    memset(s,0,sizeof(af_volnorm_t));
     int i = 0;
 
     af->nch=nch;
     af->play=play;
     af->mul=1;
-    af->data=calloc(1,sizeof(af_data_t));
+    af->data=av_malloc(sizeof(af_data_t));
+    memset(af->data,0,sizeof(af_data_t));
     s->mul = MUL_INIT;
     s->upper = 0;
     s->idx = 0;
@@ -289,10 +292,10 @@ void af_uninit_volnorm(af_priv_t* af) {
         return;
     if(af->data) {
         if(af->data->audio)
-            free(af->data->audio);
-        free(af->data);
+            av_free(af->data->audio);
+        av_free(af->data);
     }
     if(af->setup)
-        free(af->setup);
-    free(af);
+        av_free(af->setup);
+    av_free(af);
 }

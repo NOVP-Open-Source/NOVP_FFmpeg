@@ -539,7 +539,7 @@ static int open_r(SHMEMContext *s, int mode) {
 #endif
         return STREAM_UNSUPPORTED;
     }
-    s->data=malloc(s->size);
+    s->data=av_malloc(s->size);
     s->header.headerid[0]='M';
     s->header.headerid[1]='P';
     memset(s->data,0,s->size);
@@ -620,7 +620,7 @@ static int open_w(SHMEMContext *s, int mode) {
     shmem_data->mplayerid[1]='P';
     shmem_data->type=s->type;
     shmem_data->size=0;
-    s->data=malloc(s->size);
+    s->data=av_malloc(s->size);
     memset(s->data,0,s->size);
     sem_unlock(s->semid, SEM_MEMBER);
     s->mode=mode;
@@ -634,7 +634,8 @@ void* shmem_open(int shmemid, int write) {
 
     if (!shmemid)
         return NULL;
-    s = calloc(sizeof(SHMEMContext),1);
+    s = av_malloc(sizeof(SHMEMContext),1);
+    memet,s,sizeof(SHMEMContext),1);
     s->id=shmemid;
     if (write)
         res=open_w(s,STREAM_WRITE);
@@ -642,7 +643,7 @@ void* shmem_open(int shmemid, int write) {
         res=open_r(s,STREAM_READ);
     if(res==STREAM_OK)
         return s;
-    free(s);
+    av_free(s);
     return NULL;
 }
 
@@ -697,7 +698,7 @@ int shmem_close(void* priv) {
     if(s->mode==STREAM_WRITE)
         shmctl(s->shmid, IPC_RMID, 0);
     s->shmem=NULL;
-    if(s->data) free(s->data);
-    free(s);
+    if(s->data) av_free(s->data);
+    av_free(s);
     return 0;
 }

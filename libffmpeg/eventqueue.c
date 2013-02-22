@@ -2,8 +2,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
+//#include <pthread.h>
 
+#include "libavutil/mem.h"
+
+#include "ffmpeg_config.h"
+#undef CONFIG_AVFILTER
+#undef CONFIG_SWSCALE
+#include "config.h"
+
+#if HAVE_PTHREADS
+#include <pthread.h>
+#elif HAVE_W32THREADS
+#include "libavcodec/w32pthreads.h"
+#elif HAVE_OS2THREADS
+#include "libavcodec/os2threads.h"
+#endif  
 #include "eventqueue.h"
 
 #define MAX_EVENTS 256
@@ -17,7 +31,7 @@ typedef struct {
 
 
 void* init_eventqueue() {
-    eventqueue_t* queue = (eventqueue_t*)malloc(sizeof(eventqueue_t));
+    eventqueue_t* queue = (eventqueue_t*)av_malloc(sizeof(eventqueue_t));
     memset(queue,0,sizeof(eventqueue_t));
     pthread_mutex_init(&queue->mutex, NULL);
     pthread_cond_init(&queue->cond, NULL);
@@ -32,7 +46,7 @@ void uninit_eventqueue(void* eventqueue) {
         return;
     }
     for(n=0;n<queue->eventno;n++) {
-        free(queue->events[n]);
+        av_free(queue->events[n]);
     }
     queue->eventno=0;
     pthread_mutex_lock(&queue->mutex);
@@ -50,7 +64,7 @@ void clear_event(void* eventqueue) {
         return;
     }
     for(n=0;n<queue->eventno;n++) {
-        free(queue->events[n]);
+        av_free(queue->events[n]);
     }
     queue->eventno=0;
     pthread_mutex_lock(&queue->mutex);
@@ -68,7 +82,7 @@ int push_event(void* eventqueue, event_t* event) {
         return 1;
     }
     pthread_mutex_lock(&queue->mutex);
-    queue->events[queue->eventno]=malloc(sizeof(event_t));
+    queue->events[queue->eventno]=av_malloc(sizeof(event_t));
     memcpy(queue->events[queue->eventno],event,sizeof(event_t));
     queue->eventno++;
     pthread_cond_signal(&queue->cond);

@@ -87,7 +87,7 @@ typedef struct {
 
 
 void *memalign(size_t boundary, size_t size) {
-    return malloc(size);
+    return av_malloc(size);
 }
 
 void * fast_memcpy(void * to, const void * from, size_t len);
@@ -376,7 +376,7 @@ void copy_mpi(mp_image_t *dmpi, mp_image_t *mpi) {
 }
 
 mp_image_t* new_mp_image(int w,int h){
-    mp_image_t* mpi = malloc(sizeof(mp_image_t));
+    mp_image_t* mpi = av_malloc(sizeof(mp_image_t));
     if(!mpi) return NULL; // error!
     memset(mpi,0,sizeof(mp_image_t));
     mpi->width=mpi->w=w;
@@ -388,11 +388,11 @@ void free_mp_image(mp_image_t* mpi){
     if(!mpi) return;
     if(mpi->flags&MP_IMGFLAG_ALLOCATED){
         /* becouse we allocate the whole image in once */
-        if(mpi->planes[0]) free(mpi->planes[0]);
+        if(mpi->planes[0]) av_free(mpi->planes[0]);
         if (mpi->flags & MP_IMGFLAG_RGB_PALETTE)
-            free(mpi->planes[1]);
+            av_free(mpi->planes[1]);
     }
-    free(mpi);
+    av_free(mpi);
 }
 
 void mp_image_setfmt(mp_image_t* mpi,unsigned int out_fmt){

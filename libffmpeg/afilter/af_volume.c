@@ -66,12 +66,12 @@ void af_uninit_volume(af_priv_t* af) {
         return;
     if(af->data) {
         if(af->data->audio)
-            free(af->data->audio);
-        free(af->data);
+            av_free(af->data->audio);
+        av_free(af->data);
     }
     if(af->setup)
-        free(af->setup);
-    free(af);
+        av_free(af->setup);
+    av_free(af);
 }
 
 // Filter data through filter
@@ -144,15 +144,18 @@ int af_init_volume(af_priv_t* af,af_data_t *data) {
 }
 
 af_priv_t* af_open_volume(int rate, int nch, int format, int bps, float dB){
-    af_priv_t* af = calloc(1,sizeof(af_priv_t));
-    af_volume_t* s = (af_volume_t*)calloc(1,sizeof(af_volume_t));
+    af_priv_t* af = av_malloc(sizeof(af_priv_t));
+    memset(af,0,sizeof(af_priv_t));
+    af_volume_t* s = (af_volume_t*)av_malloc(sizeof(af_volume_t));
+    memset(s,0,sizeof(af_volume_t));
     float chdB[AF_NCH];
     int i = 0;
 
     af->nch=nch;
     af->play=play;
     af->mul=1;
-    af->data=calloc(1,sizeof(af_data_t));
+    af->data=av_malloc(sizeof(af_data_t));
+    memset(af->data,0,sizeof(af_data_t));
     af->setup=s;
     for(i=0;i<AF_NCH;i++) {
         chdB[i]=dB;
