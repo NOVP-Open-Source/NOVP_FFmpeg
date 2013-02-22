@@ -457,6 +457,7 @@ int             xplayer_API_getaudio_channels();
 int             xplayer_API_getaudio_format();
 
 char*           xplayer_API_getstatusline(int slot);
+void            xplayer_API_freestatusline(char* line);
 
 #ifdef __cplusplus
 };

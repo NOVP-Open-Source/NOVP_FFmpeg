@@ -145,15 +145,20 @@ void slog(char *format_str, ...) {
     va_list ap;
     char line[8192];
 
-    if(!logsfh) {
+    if(!logsfh && !logfh) {
         if(!(logsfh=fopen(LOGSNAME,"w+")))
             return;
     }
     va_start(ap,format_str);
     (void)vsnprintf(line,sizeof(line),format_str,ap);
     va_end(ap);
-    fprintf(logsfh,"%s",line);
-    fflush(logsfh);
+    if(logfh) {
+        fprintf(logfh,"%s",line);
+        fflush(logfh);
+    } else if(logsfh) {
+        fprintf(logsfh,"%s",line);
+        fflush(logsfh);
+    }
 }
 
 static void sanitize(uint8_t *line){
@@ -1051,7 +1056,7 @@ void xplayer_API_setlogfile(const char* logfile)
     {
         return;
     }
-    logfname=strdup(logfile);
+    logfname=av_strdup(logfile);
     if(stat(logfname,&st)!=-1 && S_ISREG(st.st_mode)) {
         snprintf(fnameold,sizeof(fnameold),"%s.%d",logfname,5);
         unlink(fnameold);
@@ -1407,7 +1412,7 @@ int xplayer_API_loadurl(int slot, char* url) {
     }
     if(slotinfo->url)
         av_free(slotinfo->url);
-    slotinfo->url=strdup(url);
+    slotinfo->url=av_strdup(url);
     if(url) {
         slotinfo->playflag=2;
         slotinfo->pauseafterload=1;
@@ -2190,7 +2195,7 @@ int xplayer_API_setvideocodec(int slot, char* name)
         av_free(slotinfo->video_codec_name);
     slotinfo->video_codec_name=NULL;
     if(name)
-        slotinfo->video_codec_name=strdup(name);
+        slotinfo->video_codec_name=av_strdup(name);
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
     return ret;
@@ -2207,7 +2212,7 @@ int xplayer_API_setaudiocodec(int slot, char* name)
         av_free(slotinfo->audio_codec_name);
     slotinfo->audio_codec_name=NULL;
     if(name)
-        slotinfo->audio_codec_name=strdup(name);
+        slotinfo->audio_codec_name=av_strdup(name);
     ret = 0;
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
@@ -2225,7 +2230,7 @@ int xplayer_API_setsubtitlecodec(int slot, char* name)
         av_free(slotinfo->subtitle_codec_name);
     slotinfo->subtitle_codec_name=NULL;
     if(name)
-        slotinfo->subtitle_codec_name=strdup(name);
+        slotinfo->subtitle_codec_name=av_strdup(name);
     ret = 0;
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
@@ -2303,10 +2308,16 @@ char* xplayer_API_getstatusline(int slot)
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     apicall(slot, 42);
     pthread_mutex_lock(&slotinfo->mutex);
-    ret = strdup(slotinfo->statusline);
+    ret = av_strdup(slotinfo->statusline);
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
     return ret;
+}
+
+void xplayer_API_freestatusline(char* line)
+{
+    if(line)
+        av_free(line);
 }
 
 /// ---------------------------------------------------------------------------
@@ -7347,7 +7358,7 @@ static void *player_process(void *data)
                 slotinfo->reopen=0;
             }
             if(slotinfo->url) {
-                slotinfo->currenturl=strdup(slotinfo->url);
+                slotinfo->currenturl=av_strdup(slotinfo->url);
             }
         }
         if(slotinfo->currenturl && slotinfo->playflag) {

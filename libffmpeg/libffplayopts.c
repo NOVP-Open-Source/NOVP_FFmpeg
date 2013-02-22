@@ -400,21 +400,21 @@ static int opt_codec(slotinfo_t* slotinfo, void *o, const char *opt, const char 
             av_free(slotinfo->audio_codec_name);
         slotinfo->audio_codec_name = NULL;
         if(arg && strlen(arg))
-            slotinfo->audio_codec_name = strdup(arg);
+            slotinfo->audio_codec_name = av_strdup(arg);
         break;
     case 's':
         if(slotinfo->subtitle_codec_name)
             av_free(slotinfo->subtitle_codec_name);
         slotinfo->subtitle_codec_name = NULL;
         if(arg && strlen(arg))
-            slotinfo->subtitle_codec_name = strdup(arg);
+            slotinfo->subtitle_codec_name = av_strdup(arg);
         break;
     case 'v':
         if(slotinfo->video_codec_name)
             av_free(slotinfo->video_codec_name);
         slotinfo->video_codec_name = NULL;
         if(arg && strlen(arg))
-            slotinfo->video_codec_name = strdup(arg);
+            slotinfo->video_codec_name = av_strdup(arg);
         break;
     }
     return 0;

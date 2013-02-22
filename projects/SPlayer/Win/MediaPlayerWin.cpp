@@ -366,7 +366,15 @@ int MediaPlayer::getstatus(void)
 
 char* MediaPlayer::getstatusline(void)
 {
-    return xplayer_API_getstatusline(slotId);
+    char* line = xplayer_API_getstatusline(slotId);
+    char* sline = NULL;
+
+    if(line)
+    {
+        sline=strdup(line);
+        xplayer_API_freestatusline(line);
+    }
+    return sline;
 }
 
 bool MediaPlayer::flush()
