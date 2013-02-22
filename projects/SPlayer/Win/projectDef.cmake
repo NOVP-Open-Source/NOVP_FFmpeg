@@ -49,7 +49,6 @@ target_link_libraries(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/lib/libswresample.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/libmsys/libmingwex.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../../libffmpeg/libmsys/libgcc.lib
-    ${CMAKE_CURRENT_SOURCE_DIR}/../..//pthread/x86/pthreadVC2.lib
     )
 
 # IF(${_MACHINE_ARCH_FLAG} MATCHES X86)

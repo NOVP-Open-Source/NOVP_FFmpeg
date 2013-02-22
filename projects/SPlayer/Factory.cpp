@@ -64,7 +64,7 @@ public:
     {  
         FBLOG_INFO("", "initializing libxplayer");
         xplayer_API_init(0,NULL);
-        
+
 #if FB_WIN || FB_X11
         SPlayerPlugin::StaticInitialize();
 #else

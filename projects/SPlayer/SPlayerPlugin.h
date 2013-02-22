@@ -18,7 +18,7 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 #include "PluginEvents/MouseEvents.h"
 #include "PluginEvents/AttachedEvent.h"
 #include "PluginWindow.h"
-#include "Timer.h"
+//#include "Timer.h"
 
 #include "PluginCore.h"
 
@@ -60,7 +60,7 @@ private:
     typedef boost::shared_ptr<SPlayer> SPlayerPtr;
     SPlayerPtr m_player;
     FB::PluginWindow* m_window;
-    FB::TimerPtr m_timer;
+//    FB::TimerPtr m_timer;
 };
 
 #endif

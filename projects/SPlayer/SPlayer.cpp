@@ -392,6 +392,10 @@ bool SPlayer::GroupSetTime(const FB::variant& arg)
 /// Compatible functions to QuickTime plugin:
 /// *******************************************************************
 
+#ifdef _WIN32
+#define snprintf _snprintf
+#endif
+
 char* SPlayer::GetPluginStatus()
 {
     plugincall(slotId, 23);

@@ -42,19 +42,21 @@ void SPlayerPlugin::StaticInitialize()
     // Place one-time initialization stuff here; note that there isn't an absolute guarantee that
     // this will only execute once per process, just a guarantee that it won't execute again until
     // after StaticDeinitialize is called
-#if FB_WIN || FB_X11
+#if FB_X11
     FBLOG_INFO("", "static initialize called");
-
-
     MediaPlayer::StaticInitialize();
+#endif
+#if FB_WIN
 #endif
 }
 
 void SPlayerPlugin::StaticDeinitialize()
 {
-#if FB_WIN || FB_X11
+#if FB_X11
     // Place one-time deinitialization stuff here
     MediaPlayer::StaticDeinitialize();
+#endif
+#ifdef FB_WIN
 #endif
 }
 

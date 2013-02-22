@@ -455,9 +455,11 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 {
 	PMYDATA priv;
     priv = (PMYDATA)lpParam;
+	char abuffer[0x10000];
 
 	priv->run|=1;
     while(priv->run) {
+		xplayer_API_getaudio(abuffer, sizeof(abuffer));
         Sleep(40);
         if((priv->run & 2))
         {
@@ -487,6 +489,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
     HWND hwnd = 0;
                                      
     priv->run|=1;
+
     while(priv->run) {
 		if(hwnd != priv->hwnd) {
 			hwnd=0;
