@@ -22,8 +22,9 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 #include "atlbase.h"
 #endif
 #include "SPlayer.h"
-#ifdef FB_WIN32
+#ifdef FB_WIN
 #include "Win/PluginWindowWin.h"
+#include "MediaPlayer.h"
 #endif
 #ifdef FB_X11
 #include "X11/PluginWindowX11.h"
@@ -47,6 +48,7 @@ void SPlayerPlugin::StaticInitialize()
     MediaPlayer::StaticInitialize();
 #endif
 #if FB_WIN
+    MediaPlayer::StaticInitialize();
 #endif
 }
 
@@ -57,6 +59,7 @@ void SPlayerPlugin::StaticDeinitialize()
     MediaPlayer::StaticDeinitialize();
 #endif
 #ifdef FB_WIN
+    MediaPlayer::StaticDeinitialize();
 #endif
 }
 

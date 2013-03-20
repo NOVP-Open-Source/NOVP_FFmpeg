@@ -8,6 +8,8 @@
 #include "img_format.h"
 #include "vfcap.h"
 
+#include "libxplayer.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -135,6 +137,7 @@ static void printmsg(voconf_t* voconf, char* format_str, ...) {
 	va_start(ap, format_str);
 	vsnprintf(tmp,8192,format_str,ap);
 	va_end(ap);
+	slog("VO: %s\n",tmp);
 	if(!voconf->msg) {
 		voconf->msg=strdup(tmp);
 	} else {

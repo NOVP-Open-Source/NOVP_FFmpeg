@@ -31,6 +31,7 @@ Copyright 2009 Georg Fritzsche,
 #include "VoDirectX.h"
 #include "AoDirect.h"
 #include "libxplayer.h"
+#include "af_format.h"
 
 DWORD WINAPI AoThreadFunction( LPVOID lpParam );
 DWORD WINAPI VoThreadFunction( LPVOID lpParam );
@@ -56,11 +57,14 @@ typedef struct {
 
 #define VO_THREAD	0
 #define AO_THREAD	1
-#define MAX_THREADS	2
+#define MAX_THREADS	1
+
+static HANDLE aTh[1];
+static DWORD aThId[1];
+static int aThRun = 0;
 
 struct PlayerContext 
 {
-    voconf_t* voconf;
     int w;
     int h;
 	int n;
@@ -74,7 +78,7 @@ struct PlayerContext
     std::string error;
     std::string file;
 
-    PlayerContext() : pDataArray(0), hwnd(0), voconf(0), n(0) {}
+    PlayerContext() : pDataArray(0), hwnd(0), n(0) {}
 };
 
 namespace 
@@ -117,17 +121,18 @@ namespace
 		CloseHandle(context->hThreadArray[AO_THREAD]);
 	}
 		
-	context->pDataArray->file=context->file;
-	context->voconf = preinit(1,context->hwnd);
+		context->pDataArray->file=context->file;
+		context->pDataArray->voconf = NULL;
+		context->pDataArray->hwnd = context->hwnd;
         context->pDataArray->run = 1;
         context->pDataArray->mode = 1;
-        context->pDataArray->voconf= context->voconf;
 		context->pDataArray->status=0;
 		context->pDataArray->pause=0;
 		context->pDataArray->stop=0;
 		context->pDataArray->filename=strdup(context->file.c_str());
         context->n++;
 
+#if 0
 	context->hThreadArray[AO_THREAD] = CreateThread(
             NULL,                       // default security attributes
             0,                          // use default stack size  
@@ -135,7 +140,8 @@ namespace
             context->pDataArray,        // argument to thread function 
             0,                          // use default creation flags 
             &context->dwThreadIdArray[AO_THREAD]); // returns the thread identifier 
-        context->hThreadArray[VO_THREAD] = CreateThread(
+#endif
+	context->hThreadArray[VO_THREAD] = CreateThread(
             NULL,                       // default security attributes
             0,                          // use default stack size  
             VoThreadFunction,          // thread function name
@@ -187,10 +193,22 @@ MediaPlayer::~MediaPlayer()
 
 void MediaPlayer::StaticInitialize()
 {
+	slog("static init\n");
+	aTh[0] = CreateThread(
+            NULL,                       // default security attributes
+            0,                          // use default stack size  
+            AoThreadFunction,           // thread function name
+            NULL,        // argument to thread function 
+            0,                          // use default creation flags 
+            &aThId[0]); // returns the thread identifier 
 }
 
 void MediaPlayer::StaticDeinitialize()
 {
+	slog("static deinit\n");
+	aThRun = 0;
+	WaitForMultipleObjects(1, aTh, TRUE, 1000);
+	CloseHandle(aTh[0]);
 }
 
 void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
@@ -203,10 +221,12 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
         hwnd = wnd->getHWND();
     }
     
-    if(m_context->hwnd) {
+    if(m_context->pDataArray) {
+        m_context->pDataArray->hwnd = hwnd;
     }
     
     m_context->hwnd = hwnd;
+	slog("set window: %p\n",hwnd);
 }
 
 bool MediaPlayer::setloglevel(int logLevel)
@@ -235,8 +255,8 @@ bool MediaPlayer::open(const std::string& url)
 {
     m_context->file = url;
     activateVideo(m_context);
-//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
-    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
+    xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
+//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_YV12);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_I420);
     xplayer_API_sethwbuffersize(slotId, xplayer_API_prefilllen());
@@ -250,7 +270,7 @@ bool MediaPlayer::open(const std::string& url)
 bool MediaPlayer::play()
 {
     activateVideo(m_context);
-
+    xplayer_API_play(slotId);
     return true;
 }
 
@@ -284,6 +304,7 @@ bool MediaPlayer::pause()
 
 bool MediaPlayer::stop()
 {
+	xplayer_API_stop(slotId);
 	if(m_context->pDataArray && m_context->pDataArray->run) 
 	{
 		m_context->pDataArray->run = 0;
@@ -461,20 +482,33 @@ extern "C" {
 
 DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 {
-	PMYDATA priv;
-    priv = (PMYDATA)lpParam;
 	char abuffer[0x10000];
+	aoconf_t* aoconf;
+	int rate = xplayer_API_getaudio_rate();
+	int channels = xplayer_API_getaudio_channels();
+	int len;
+	int plen = 0;
 
-	priv->run|=1;
-    while(priv->run) {
-		xplayer_API_getaudio(abuffer, sizeof(abuffer));
-        Sleep(40);
-        if((priv->run & 2))
-        {
-             break;
-        }
+	slog("audio thread start\n");
+	aThRun=1;
+	aoconf = audio_init(rate, channels, AF_FORMAT_S16_LE, 0);
+	memset(abuffer,0,sizeof(abuffer));
+	while(1) {
+		len=xplayer_API_prefillaudio(abuffer, sizeof(abuffer), plen);
+		plen+=len;
+		if(!len)
+			break;
+		if(len)
+			audio_play(aoconf, abuffer, len, 0);
+	}
+	while(aThRun) {
+		len=xplayer_API_getaudio(abuffer, sizeof(abuffer));
+		if(len)
+			audio_play(aoconf, abuffer, len, 0);
+        Sleep(1);
     }
-
+	audio_uninit(aoconf, 1);
+	slog("audio thread end\n");
     return NULL;
 }
 
@@ -501,23 +535,26 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
     while(priv->run) {
 		if(hwnd != priv->hwnd) {
 			hwnd=0;
-			vo_uninit(priv->voconf);
+			if(priv->voconf)
+				vo_uninit(priv->voconf);
+			priv->voconf=NULL;
 		}
 		if(priv->hwnd) {
 			hwnd = priv->hwnd;
 		}	
+		if(!priv->voconf && hwnd) {
+			priv->voconf = preinit(1,hwnd);
+			w=h=fmt=0;
+			slog("voconf: %p hwnd: %p\n",priv->voconf,hwnd);
+		}
         if(xplayer_API_isnewimage(priv->slot))
         {
 			xplayer_API_getimage(priv->slot, &img);
-            if(img) {
-				w=img->w;
-                h=img->h;
-				fmt=img->imgfmt;
-  				vo_config(priv->voconf, w,h,w,h,0,NULL,fmt);
-            } else if(img && (w!=img->w || h!=img->h)) {
+			if(img && (w!=img->w || h!=img->h) && priv->voconf) {
                 w=img->w;
                 h=img->h;
 				fmt=img->imgfmt;
+				slog("video config: w: %d, h: %d, fmt: 0x%x\n",w,h,fmt);
 				vo_config(priv->voconf, w,h,w,h,0,NULL,fmt);
             }
             if(img) {
@@ -526,8 +563,8 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
                     img->planes[1] = img->planes[2];
                     img->planes[2] = tmp;
                 }
- 				if(hwnd) {
-					vo_draw_frame(priv->voconf, priv->img->planes);
+ 				if(hwnd && priv->voconf) {
+					vo_draw_frame(priv->voconf, img->planes);
 					vo_flip_page(priv->voconf);
 				}
                 if(img->imgfmt==IMGFMT_I420) {
@@ -540,14 +577,15 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 		}
         ltime=etime;
         etime=xplayer_clock();
-        Sleep(40000);
+        Sleep(40);
         stime=xplayer_clock();
         if((priv->run & 2) && !(xplayer_API_getstatus(priv->slot)&STATUS_PLAYER_OPENED))
         {
             break;
         }
     }
-    if(hwnd) {
+	slog("end of video process\n");
+	if(hwnd && priv->voconf) {
 		vo_uninit(priv->voconf);
 	}
     xplayer_API_videoprocessdone(priv->slot);

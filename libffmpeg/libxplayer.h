@@ -459,6 +459,9 @@ int             xplayer_API_getaudio_format();
 char*           xplayer_API_getstatusline(int slot);
 void            xplayer_API_freestatusline(char* line);
 
+void            slog(const char *format_str, ...);
+
+
 #ifdef __cplusplus
 };
 #endif
