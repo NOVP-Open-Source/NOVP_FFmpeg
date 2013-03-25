@@ -29,6 +29,7 @@ Mac OS X:
 Windows
  minGW (/w MSYS Basic System)
  cmake (add CMake to the system PATH)
+ patch (included in git)
 
 ############################
 #        4. Build          #
@@ -41,9 +42,10 @@ Mac OS X:
   4, Compile
 
 Windows (to be fixed):
-  1, copy cloned splayer to ..msys/../home
+  1, copy the cloned splayer to ..msys/../home
   2, open a minGW shell and enter the copied splayer folder
-  3, ...
+  3, apply patch of FFmpeg (patch -p0 < FFmpeg.patch, might need a Git Shell)
+  4, ...
 
 ############################
 #        4. Credits        #
