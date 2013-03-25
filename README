@@ -27,8 +27,8 @@ Mac OS X:
  xcode
 
 Windows
- minGW
- cmake
+ minGW (/w MSYS Basic System)
+ cmake (add CMake to the system PATH)
 
 ############################
 #        4. Build          #
@@ -40,8 +40,10 @@ Mac OS X:
   3, Set the active scheme to Splayer
   4, Compile
 
-Windows:
-  TBD
+Windows (to be fixed):
+  1, copy cloned splayer to ..msys/../home
+  2, open a minGW shell and enter the copied splayer folder
+  3, ...
 
 ############################
 #        4. Credits        #
