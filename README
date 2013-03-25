@@ -15,7 +15,6 @@
 #       2. Libraries       #
 ############################
 
-Mac OS X:
  Firebreath 
  FFmpeg
 
@@ -27,6 +26,10 @@ Mac OS X:
  cmake 
  xcode
 
+Windows
+ minGW
+ cmake
+
 ############################
 #        4. Build          #
 ############################
@@ -36,6 +39,9 @@ Mac OS X:
   2, Open 'build/FireBreath.xcodeproj' with XCode
   3, Set the active scheme to Splayer
   4, Compile
+
+Windows:
+  TBD
 
 ############################
 #        4. Credits        #
