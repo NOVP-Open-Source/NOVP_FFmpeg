@@ -55,6 +55,9 @@ Windows (to be fixed):
   7, clone Firebreath and checkout to 1.7.0 into msys/../home/splayer folder
   8, change genw.cmd in order to have a project for VS 2012 ("Firebreath\prep2012.cmd" projects build)
   9, run genw.cmd
+ 10, Open 'build/FireBreath.sln' with Visual Studio 2012
+ 11, Build
+ 12, register 'build\bin\SPlayer\Debug\npSPlayer.dll' with C:\Windows\SysWOW64\regsvr32.exe
 
 ############################
 #        4. Credits        #
