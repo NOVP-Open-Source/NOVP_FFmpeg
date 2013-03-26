@@ -30,6 +30,7 @@ Windows
  minGW (/w MSYS Basic System and MinGW Developer ToolKit)
  cmake (add CMake to the system PATH)
  patch (included in git)
+ Windows Driver Kit Version 7.1.0 (Full Development Environment)
 
 ############################
 #        4. Build          #
@@ -49,7 +50,11 @@ Windows (to be fixed):
      #ifndef MSG_NOSIGNAL
      #define MSG_NOSIGNAL 0
      #endif
-  5, make -C libffmpeg
+  5, make -C libffmpeg (be extremely patient)
+  6, run genwinlib.cmd (convert *.a to *.obj)
+  7, clone Firebreath and checkout to 1.7.0 into msys/../home/splayer folder
+  8, change genw.cmd in order to have a project for VS 2012 ("Firebreath\prep2012.cmd" projects build)
+  9, run genw.cmd
 
 ############################
 #        4. Credits        #
@@ -57,6 +62,7 @@ Windows (to be fixed):
 
  Máté Koch
  Attila Ötvös
+ Tamás Szabó
 
                                                                                
                                                              #                   
