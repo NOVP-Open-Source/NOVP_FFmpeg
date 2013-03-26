@@ -27,7 +27,7 @@ Mac OS X:
  xcode
 
 Windows
- minGW (/w MSYS Basic System)
+ minGW (/w MSYS Basic System and MinGW Developer ToolKit)
  cmake (add CMake to the system PATH)
  patch (included in git)
 
@@ -45,7 +45,11 @@ Windows (to be fixed):
   1, copy the cloned splayer to ..msys/../home
   2, open a minGW shell and enter the copied splayer folder
   3, apply patch of FFmpeg (patch -p0 < FFmpeg.patch, might need a Git Shell)
-  4, ...
+  4, add the following to FFmpeg\libavformat\tcp.c
+     #ifndef MSG_NOSIGNAL
+     #define MSG_NOSIGNAL 0
+     #endif
+  5, make -C libffmpeg
 
 ############################
 #        4. Credits        #
@@ -80,6 +84,6 @@ Windows (to be fixed):
                                       #####   ###  ##       ###    ###      #    
                                           ###     ##         ###  ###########           
 						    
-                                        Copyright (c) 2012 CAE Engineering Kft.
+                                    Copyright (c) 2012-2013 CAE Engineering Kft.
 
 
