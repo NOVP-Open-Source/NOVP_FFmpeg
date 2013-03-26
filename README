@@ -43,21 +43,22 @@ Mac OS X:
   4, Compile
 
 Windows (to be fixed):
-  1, copy the cloned splayer to ..msys/../home
-  2, open a minGW shell and enter the copied splayer folder
-  3, apply patch of FFmpeg (patch -p0 < FFmpeg.patch, might need a Git Shell)
-  4, add the following to FFmpeg\libavformat\tcp.c
+  1, apply patch of FFmpeg (patch -p0 < FFmpeg.patch, might need a Git Shell)
+  2, add the following to FFmpeg\libavformat\tcp.c
      #ifndef MSG_NOSIGNAL
      #define MSG_NOSIGNAL 0
      #endif
-  5, make -C libffmpeg (be extremely patient)
-  6, run genwinlib.cmd (convert *.a to *.obj)
-  7, clone Firebreath and checkout to 1.7.0 into msys/../home/splayer folder
-  8, change genw.cmd in order to have a project for VS 2012 ("Firebreath\prep2012.cmd" projects build)
-  9, run genw.cmd
- 10, Open 'build/FireBreath.sln' with Visual Studio 2012
- 11, Build
- 12, register 'build\bin\SPlayer\Debug\npSPlayer.dll' with C:\Windows\SysWOW64\regsvr32.exe
+     {TODO FFmpeg.patch could be extended with this, need revision of aotvos}
+  3, open a minGW shell and enter the copied splayer folder (eg.: 'cd c/splayer')
+  4, make -C libffmpeg (be extremely patient)
+  5, execute genwinlib.cmd (convert *.a to *.obj)
+  6, clone Firebreath and checkout to 1.7.0 into msys/../home/splayer folder
+     {TODO check if this version is appropriate for Mac OS X too, then we can move to it}
+  7, change genw.cmd in order to have a project for VS 2012 ("Firebreath\prep2012.cmd" projects build)
+     {TODO This might be cahnged permanently, wait for testing}
+  8, execute genw.cmd
+  9, Open and build 'build/FireBreath.sln' with Visual Studio 2012
+ 10, register 'build\bin\SPlayer\Debug\npSPlayer.dll' with C:\Windows\SysWOW64\regsvr32.exe
 
 ############################
 #        4. Credits        #
