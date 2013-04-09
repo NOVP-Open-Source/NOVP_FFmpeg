@@ -293,6 +293,7 @@ bool MediaPlayer::open(const std::string& url)
     activateVideo(m_context);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
     xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
+//    xplayer_API_setimage(slotId, 1920, 1440, IMGFMT_RGB24);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_YV12);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_I420);
     xplayer_API_sethwbuffersize(slotId, xplayer_API_prefilllen());

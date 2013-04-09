@@ -16,6 +16,10 @@ Copyright 2009 Georg Fritzsche,
 #define _WIN32_DCOM
 #pragma warning(disable : 4995)
 
+#pragma comment(lib, "dsound.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "winmm.lib")
+
 #include <list>
 #include <boost/assign/list_of.hpp>
 //#include <atlbase.h>
@@ -33,6 +37,8 @@ Copyright 2009 Georg Fritzsche,
 #include "libxplayer.h"
 #include "af_format.h"
 
+#include <dsound.h>
+
 DWORD WINAPI AoThreadFunction( LPVOID lpParam );
 DWORD WINAPI VoThreadFunction( LPVOID lpParam );
 
@@ -46,6 +52,7 @@ typedef struct {
     int size;
     int slot;
     HWND hwnd;
+	FB::PluginWindow* win;
     mp_image_t*	img;
     std::string file;
 
@@ -72,8 +79,10 @@ struct PlayerContext
     PMYDATA pDataArray;
     DWORD   dwThreadIdArray[MAX_THREADS];
 	HANDLE  hThreadArray[MAX_THREADS];
-
+	
     HWND hwnd;
+	FB::PluginWindow* win;
+
 	int slot;
     std::string error;
     std::string file;
@@ -124,6 +133,7 @@ namespace
 		context->pDataArray->file=context->file;
 		context->pDataArray->voconf = NULL;
 		context->pDataArray->hwnd = context->hwnd;
+		context->pDataArray->win = context->win;
         context->pDataArray->run = 1;
         context->pDataArray->mode = 1;
 		context->pDataArray->status=0;
@@ -223,9 +233,13 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
     
     if(m_context->pDataArray) {
         m_context->pDataArray->hwnd = hwnd;
+		m_context->pDataArray->win = pluginWindow;
+	    slog("set plugin window: %p\n",pluginWindow);
     }
     
     m_context->hwnd = hwnd;
+	m_context->win = pluginWindow;
+
 	slog("set window: %p\n",hwnd);
 }
 
@@ -294,11 +308,7 @@ bool MediaPlayer::groupseekpos(const double pos)
 
 bool MediaPlayer::pause()
 {
-	if(m_context && m_context->pDataArray)
-	{
-		m_context->pDataArray->pause=1;
-		return true;
-	}
+    xplayer_API_pause(slotId);
     return false;
 }
 
@@ -480,6 +490,32 @@ extern "C" {
 	};
 };
 
+static char * dserr2str(int err)
+{
+	switch (err) {
+		case DS_OK: return "DS_OK";
+		case DS_NO_VIRTUALIZATION: return "DS_NO_VIRTUALIZATION";
+		case DSERR_ALLOCATED: return "DS_NO_VIRTUALIZATION";
+		case DSERR_CONTROLUNAVAIL: return "DSERR_CONTROLUNAVAIL";
+		case DSERR_INVALIDPARAM: return "DSERR_INVALIDPARAM";
+		case DSERR_INVALIDCALL: return "DSERR_INVALIDCALL";
+		case DSERR_GENERIC: return "DSERR_GENERIC";
+		case DSERR_PRIOLEVELNEEDED: return "DSERR_PRIOLEVELNEEDED";
+		case DSERR_OUTOFMEMORY: return "DSERR_OUTOFMEMORY";
+		case DSERR_BADFORMAT: return "DSERR_BADFORMAT";
+		case DSERR_UNSUPPORTED: return "DSERR_UNSUPPORTED";
+		case DSERR_NODRIVER: return "DSERR_NODRIVER";
+		case DSERR_ALREADYINITIALIZED: return "DSERR_ALREADYINITIALIZED";
+		case DSERR_NOAGGREGATION: return "DSERR_NOAGGREGATION";
+		case DSERR_BUFFERLOST: return "DSERR_BUFFERLOST";
+		case DSERR_OTHERAPPHASPRIO: return "DSERR_OTHERAPPHASPRIO";
+		case DSERR_UNINITIALIZED: return "DSERR_UNINITIALIZED";
+		case DSERR_NOINTERFACE: return "DSERR_NOINTERFACE";
+		case DSERR_ACCESSDENIED: return "DSERR_ACCESSDENIED";
+		default: return "unknown";
+	}
+}
+
 DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 {
 	char abuffer[0x10000];
@@ -491,7 +527,10 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 
 	slog("audio thread start\n");
 	aThRun=1;
+#if 0
+
 	aoconf = audio_init(rate, channels, AF_FORMAT_S16_LE, 0);
+	slog("%s\n" ,agetmsg(aoconf));
 	memset(abuffer,0,sizeof(abuffer));
 	while(1) {
 		len=xplayer_API_prefillaudio(abuffer, sizeof(abuffer), plen);
@@ -499,18 +538,289 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 		if(!len)
 			break;
 		if(len)
-			audio_play(aoconf, abuffer, len, 0);
+			audio_play(aoconf, abuffer, len, 1);
 	}
 	while(aThRun) {
 		len=xplayer_API_getaudio(abuffer, sizeof(abuffer));
 		if(len)
-			audio_play(aoconf, abuffer, len, 0);
+			audio_play(aoconf, abuffer, len, 1);
         Sleep(1);
     }
 	audio_uninit(aoconf, 1);
+#else
+	HRESULT result;
+	DSBUFFERDESC bufferDesc;
+	WAVEFORMATEX waveFormat;
+	IDirectSound8* m_DirectSound = 0;
+ 	IDirectSoundBuffer* m_primaryBuffer = 0;
+ 	IDirectSoundBuffer8* m_secondaryBuffer = 0;
+	IDirectSoundBuffer* tempBuffer;
+	unsigned char *bufferPtr;
+	unsigned long bufferSize;
+
+	// Initialize the direct sound interface pointer for the default sound device.
+	result = DirectSoundCreate8(NULL, &m_DirectSound, NULL);
+	if(FAILED(result))
+	{
+		slog("audio thread: DirectSoundCreate8() fail.\n");
+		slog("Result: %d %s\n",result,dserr2str(result));
+		return 0;
+	}
+
+	// Set the cooperative level to priority so the format of the primary sound buffer can be modified.
+	result = m_DirectSound->SetCooperativeLevel(GetDesktopWindow(), DSSCL_PRIORITY);
+	if(FAILED(result))
+	{
+		slog("audio thread: SetCooperativeLevel() fail.\n");
+		slog("Result: %d %s\n",result,dserr2str(result));
+		return 0;
+	} 
+
+	// Setup the format of the primary sound bufffer.
+	// In this case it is a .WAV file recorded at 44,100 samples per second in 16-bit stereo (cd audio format).
+	waveFormat.wFormatTag = WAVE_FORMAT_PCM;
+	waveFormat.nSamplesPerSec = rate;
+	waveFormat.wBitsPerSample = 16;
+	waveFormat.nChannels = channels;
+	waveFormat.nBlockAlign = (waveFormat.wBitsPerSample / 8) * waveFormat.nChannels;
+	waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
+	waveFormat.cbSize = 0;
+ 
+	// Setup the primary buffer description.
+	bufferDesc.dwSize = sizeof(DSBUFFERDESC);
+	bufferDesc.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_CTRLVOLUME;
+	bufferDesc.dwBufferBytes = 0;
+	bufferDesc.dwReserved = 0;
+	bufferDesc.lpwfxFormat = NULL;
+	bufferDesc.guid3DAlgorithm = GUID_NULL;
+
+	// Get control of the primary sound buffer on the default sound device.
+	result = m_DirectSound->CreateSoundBuffer(&bufferDesc, &m_primaryBuffer, NULL);
+	if(FAILED(result))
+	{
+		slog("audio thread: CreateSoundBuffer() fail.\n");
+		slog("Result: %d %s\n",result,dserr2str(result));
+		return 0;
+	}
+
+	// Set the primary buffer to be the wave format specified.
+	result = m_primaryBuffer->SetFormat(&waveFormat);
+	if(FAILED(result))
+	{
+		slog("audio thread: SetFormat() fail.\n");
+		slog("nSamplesPerSec : %d\n",waveFormat.nSamplesPerSec);
+		slog("wBitsPerSample : %d\n",waveFormat.wBitsPerSample);
+		slog("nChannels      : %d\n",waveFormat.nChannels);
+		slog("nBlockAlign    : %d\n",waveFormat.nBlockAlign);
+		slog("nAvgBytesPerSec: %d\n",waveFormat.nAvgBytesPerSec);
+		slog("Result: %d %s\n",result,dserr2str(result));
+		return 0;
+	}
+
+
+	// Set the buffer description of the secondary sound buffer that the wave file will be loaded onto.
+	bufferDesc.dwSize = sizeof(DSBUFFERDESC);
+	bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME | DSBCAPS_GLOBALFOCUS;
+	bufferDesc.dwBufferBytes = sizeof(abuffer);
+	bufferDesc.dwReserved = 0;
+	bufferDesc.lpwfxFormat = &waveFormat;
+	bufferDesc.guid3DAlgorithm = GUID_NULL;
+	// Create a temporary sound buffer with the specific buffer settings.
+	result = m_DirectSound->CreateSoundBuffer(&bufferDesc, &tempBuffer, NULL);
+	if(FAILED(result))
+	{
+		slog("audio thread: create temp buffer fail.\n");
+		slog("Result: %d %s\n",result,dserr2str(result));
+		return 0;
+	}
+	// Test the buffer format against the direct sound 8 interface and create the secondary buffer.
+	result = tempBuffer->QueryInterface(IID_IDirectSoundBuffer8, (void**)&m_secondaryBuffer);
+	if(FAILED(result))
+	{
+		slog("audio thread: query interface fail.\n");
+		slog("Result: %d %s\n",result,dserr2str(result));
+		return false;
+	}
+ 
+	// Release the temporary buffer.
+	tempBuffer->Release();
+	tempBuffer = 0; 
+
+	slog("audio thread: start audio\n");
+	while(aThRun) {
+		len=xplayer_API_getaudio(abuffer, sizeof(abuffer));
+		if(len)
+		{
+			m_secondaryBuffer->Lock(0, len, (void**)&bufferPtr, (DWORD*)&bufferSize, NULL, 0, 0);
+//			slog("audio thread: copy %d (%d) bytes from %p to %p\n",len,bufferSize,abuffer,bufferPtr);
+			if(bufferPtr)
+				memcpy(bufferPtr,abuffer,len);
+			result = m_secondaryBuffer->Unlock((void*)bufferPtr, bufferSize, NULL, 0);
+			if(FAILED(result))
+			{
+				slog("audio thread: unlock fail.\n");
+				slog("Result: %d %s\n",result,dserr2str(result));
+//				return false;
+			}
+			result = m_secondaryBuffer->SetCurrentPosition(0);
+			if(FAILED(result))
+			{
+				slog("audio thread: setCurrentPosition fail.\n");
+				slog("Result: %d %s\n",result,dserr2str(result));
+//				return false;
+			}
+			result = m_secondaryBuffer->SetVolume(DSBVOLUME_MAX);
+			if(FAILED(result))
+			{
+				slog("audio thread: setVolume fail.\n");
+				slog("Result: %d %s\n",result,dserr2str(result));
+//				return false;
+			}
+//			result = m_secondaryBuffer->Play(0, 0, 0);
+			result = m_secondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+			if(FAILED(result))
+			{
+				slog("audio thread: play fail.\n");
+			}
+ 		}
+        Sleep(1);
+    }
+	slog("audio thread: end audio\n");
+
+
+
+	if(m_secondaryBuffer)
+	{
+		m_secondaryBuffer->Release();
+		m_secondaryBuffer = 0;
+	}
+	if(m_primaryBuffer)
+	{
+		m_primaryBuffer->Release();
+		m_primaryBuffer = 0;
+	}
+ 
+	// Release the direct sound interface pointer.
+	if(m_DirectSound)
+	{
+		m_DirectSound->Release();
+		m_DirectSound = 0;
+	}
+
+	// Shutdown the Direct Sound API.
+//	ShutdownDirectSound();
+#endif
+
 	slog("audio thread end\n");
     return NULL;
 }
+
+#if 1
+
+DWORD WINAPI VoThreadFunction( LPVOID lpParam )
+{
+    PMYDATA priv;
+    priv = (PMYDATA)lpParam;
+
+    mp_image_t* img = NULL;
+    mp_image_t* frame = NULL;
+    int w=0;
+    int h=0;
+    int fmt=0;
+    int winw = 640;
+    int winh = 480;
+    int owinw = 0;
+    int owinh = 0;
+
+    double stime=0.0;
+    double etime=0.0;
+    double ltime=0.0;
+    HWND hwnd = 0;
+	HDC hdc;
+	PAINTSTRUCT ps;
+	HGDIOBJ oldBitMap;
+	HDC hdcMem;
+	BITMAP bitmap;
+	HBITMAP hBitmap;              
+					
+
+
+    priv->run|=1;
+    while(priv->run) {
+		if(hwnd != priv->hwnd) {
+			hwnd=0;
+			w=h=fmt=0;
+		}
+		if(priv->hwnd && !hwnd) {
+			hwnd = priv->hwnd;
+			slog("hwnd: %p\n",hwnd);
+		}	
+		if (priv->win)
+		{
+			FB::Rect pos = priv->win->getWindowPosition();
+			winw = pos.right-pos.left;
+			winh = pos.bottom-pos.top;
+//			slog("Window size is %d, %d\n",winw, winh);
+		}
+		if(xplayer_API_isnewimage(priv->slot))
+        {
+			xplayer_API_getimage(priv->slot, &img);
+			if(img && (w!=img->w || h!=img->h)) {
+                w=img->w;
+                h=img->h;
+				fmt=img->imgfmt;
+				slog("video config: w: %d, h: %d, fmt: 0x%x\n",w,h,fmt);
+            }
+            if(img) {
+                if(img->imgfmt==IMGFMT_I420) {
+					unsigned char* tmp = img->planes[1];
+                    img->planes[1] = img->planes[2];
+                    img->planes[2] = tmp;
+                }
+ 				if(hwnd && w && h) {
+					if(w && h) {
+						if ( owinw != winw || owinh != winh) {
+							slog("Resize required: new size is %d, %d\n",winw, winh);
+							xplayer_API_setimage(priv->slot, winw, winh, IMGFMT_BGR32);
+							owinw=winw;
+							owinh=winh;
+						}	
+					}
+					slog("create bitmap ...\n");
+					hBitmap = CreateBitmap(w,h,1,32,img->planes[0]);
+					slog("hBitmap: %p\n",hBitmap);
+					hdcMem = CreateCompatibleDC(NULL);
+					SelectObject(hdcMem, hBitmap);				
+					hdc = GetDC(hwnd);
+					BitBlt(hdc, 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+					ReleaseDC(hwnd, hdc);
+					DeleteDC(hdcMem);
+					DeleteObject(hBitmap);
+				}
+                if(img->imgfmt==IMGFMT_I420) {
+					unsigned char* tmp = img->planes[1];
+                    img->planes[1] = img->planes[2];
+                    img->planes[2] = tmp;
+                }
+                xplayer_API_imagedone(priv->slot);
+            }
+		}
+        ltime=etime;
+        etime=xplayer_clock();
+        Sleep(40);
+        stime=xplayer_clock();
+        if((priv->run & 2) && !(xplayer_API_getstatus(priv->slot)&STATUS_PLAYER_OPENED))
+        {
+            break;
+        }
+    }
+	slog("end of video process\n");
+    xplayer_API_videoprocessdone(priv->slot);
+    priv->run=0;
+	return NULL;
+}
+
+#else
 
 DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 {
@@ -529,6 +839,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
     double etime=0.0;
     double ltime=0.0;
     HWND hwnd = 0;
+	HDC hdc;
                                      
     priv->run|=1;
 
@@ -592,8 +903,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
     priv->run=0;
 	return NULL;
 }
-
-
+#endif
 
 
 

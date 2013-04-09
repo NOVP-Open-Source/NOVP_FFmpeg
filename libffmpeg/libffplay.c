@@ -2377,7 +2377,9 @@ typedef struct VideoPicture {
     int64_t pos;                                 ///<byte position in file
     int skip;
     mp_image_t* bmp;
+    mp_image_t* tempimg;
     int width, height; /* source height & width */
+    int owidth, oheight; /* source height & width */
     int allocated;
     int reallocate;
     enum PixelFormat pix_fmt;
@@ -2530,6 +2532,7 @@ typedef struct VideoState {
     pthread_cond_t pictq_cond;
 #if !CONFIG_AVFILTER
     struct SwsContext *img_convert_ctx;
+    struct SwsContext *img_scale_ctx;
 #endif
 
     char filename[1024];
@@ -3230,6 +3233,15 @@ static void stream_close(VideoState *is)
             }
         }
         vp->bmp = NULL;
+        if(vp->tempimg) {
+            if(is->slotinfo->doneflag) {
+                free_mp_image(vp->tempimg);
+                mpi_free++;
+            } else {
+                add_freeable_image(is->slotinfo, vp->tempimg);
+            }
+        }
+        vp->tempimg = NULL;
         if(vp->vdaframe) {
             if(is->slotinfo->doneflag)
 #if defined(__APPLE__)
@@ -3258,6 +3270,8 @@ static void stream_close(VideoState *is)
 #if !CONFIG_AVFILTER
     if (is->img_convert_ctx)
         sws_freeContext(is->img_convert_ctx);
+    if (is->img_scale_ctx)
+        sws_freeContext(is->img_scale_ctx);
 #endif
     pthread_mutex_lock(&slotinfo->audiomutex);
     is->slotinfo->streampriv=NULL;
@@ -3930,6 +3944,15 @@ static void alloc_picture(void *opaque)
         }
     }
     vp->bmp=NULL;
+    if (vp->tempimg) {
+        if(is->slotinfo->doneflag) {
+            free_mp_image(vp->tempimg);
+            mpi_free++;
+        } else {
+            add_freeable_image(is->slotinfo, vp->tempimg);
+        }
+    }
+    vp->tempimg=NULL;
     if(vp->vdaframe) {
         if(is->slotinfo->doneflag) {
 #if defined(__APPLE__)
@@ -3951,10 +3974,18 @@ static void alloc_picture(void *opaque)
 
     vp->width   = is->out_video_filter->inputs[0]->w;
     vp->height  = is->out_video_filter->inputs[0]->h;
+    vp->owidth   = is->out_video_filter->inputs[0]->w;
+    vp->oheight  = is->out_video_filter->inputs[0]->h;
     vp->pix_fmt = is->out_video_filter->inputs[0]->format;
 #else
+    vp->owidth   = is->video_st->codec->width/DEBUG_DIVIMGSIZE;
+    vp->oheight  = is->video_st->codec->height/DEBUG_DIVIMGSIZE;
     vp->width   = is->video_st->codec->width/DEBUG_DIVIMGSIZE;
     vp->height  = is->video_st->codec->height/DEBUG_DIVIMGSIZE;
+    if(is->slotinfo->w && is->slotinfo->h) {
+        vp->width   = is->slotinfo->w/DEBUG_DIVIMGSIZE;
+        vp->height  = is->slotinfo->h/DEBUG_DIVIMGSIZE;
+    }
     vp->pix_fmt = is->video_st->codec->pix_fmt;
 #endif
     if(is->slotinfo->fps==0.0)
@@ -3987,6 +4018,18 @@ static void alloc_picture(void *opaque)
             do_exit(is);
         }
         mpi_alloc++;
+        if(is->slotinfo->w && is->slotinfo->h) {
+            vp->tempimg = alloc_mpi(vp->width, vp->height, is->slotinfo->video_info.format);
+            if (!vp->tempimg || vp->tempimg->stride[0] < vp->width) {
+                /* SDL allocates a buffer smaller than requested if the video
+                 * overlay hardware is unable to support the requested size. */
+                av_log(NULL, AV_LOG_ERROR, "[error] Error: the video system does not support an image\n"
+                                "size of %dx%d pixels. Try using -lowres or -vf \"scale=w:h\"\n"
+                                "to reduce the image size.\n", vp->width, vp->height );
+                do_exit(is);
+            }
+            mpi_alloc++;
+        }
     }
 
     pthread_mutex_lock(&is->pictq_mutex);
@@ -4081,6 +4124,7 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         }
 #endif
         AVPicture pict;
+        AVPicture tpict;
 #if CONFIG_AVFILTER
         if(vp->picref)
             avfilter_unref_buffer(vp->picref);
@@ -4089,6 +4133,7 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
 
         /* get a pointer on the bitmap */
         memset(&pict,0,sizeof(AVPicture));
+        memset(&tpict,0,sizeof(AVPicture));
         pthread_mutex_lock(&is->slotinfo->mutex);
         pict.data[0] = vp->bmp->planes[0];
         pict.data[1] = vp->bmp->planes[2];
@@ -4097,6 +4142,16 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         pict.linesize[0] = vp->bmp->stride[0];
         pict.linesize[1] = vp->bmp->stride[2];
         pict.linesize[2] = vp->bmp->stride[1];
+
+        if(vp->tempimg) {
+            tpict.data[0] = vp->tempimg->planes[0];
+            tpict.data[1] = vp->tempimg->planes[2];
+            tpict.data[2] = vp->tempimg->planes[1];
+
+            tpict.linesize[0] = vp->tempimg->stride[0];
+            tpict.linesize[1] = vp->tempimg->stride[2];
+            tpict.linesize[2] = vp->tempimg->stride[1];
+        }
 
         is->slotinfo->codec_imgfmt=pixfmt2imgfmt(is->video_st->codec->pix_fmt);
         is->slotinfo->codec_w=is->video_st->codec->width;
@@ -4113,11 +4168,26 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
                 vp->width, vp->height, PIX_FMT_UYVY422, vp->width, vp->height,
                 is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
         } else {
-            is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
-                is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
+            if(vp->tempimg) {
+                is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
+                    vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
+                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
+                is->img_scale_ctx = sws_getCachedContext(is->img_scale_ctx,
+                    vp->owidth, vp->oheight, vp->pix_fmt, vp->width, vp->height,
+                    vp->pix_fmt, is->sws_flags, NULL, NULL, NULL);
+            } else {
+                is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
+                    vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
+                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
+            }
         }
         if (is->img_convert_ctx == NULL) {
+            av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
+            pthread_mutex_unlock(&is->slotinfo->mutex);
+            do_exit(is);
+            return -1;
+        }
+        if (!is->usesvda && vp->tempimg && is->img_scale_ctx == NULL) {
             av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
             pthread_mutex_unlock(&is->slotinfo->mutex);
             do_exit(is);
@@ -4164,8 +4234,15 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         else
 #endif
         {
-            sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
-                      0, vp->height, pict.data, pict.linesize);
+            if(vp->tempimg) {
+                sws_scale(is->img_scale_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                          0, vp->height, tpict.data, tpict.linesize);
+                sws_scale(is->img_convert_ctx, tpict.data, tpict.linesize,
+                          0, vp->height, pict.data, pict.linesize);
+            } else {
+                sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                          0, vp->height, pict.data, pict.linesize);
+            }
         }
 #endif
         pthread_mutex_unlock(&is->slotinfo->mutex);
