@@ -15,7 +15,6 @@
 #       2. Libraries       #
 ############################
 
-Mac OS X:
  Firebreath 
  FFmpeg
 
@@ -27,6 +26,12 @@ Mac OS X:
  cmake 
  xcode
 
+Windows
+ minGW (/w MSYS Basic System and MinGW Developer ToolKit)
+ cmake (add CMake to the system PATH)
+ patch (included in git)
+ Windows Driver Kit Version 7.1.0 (Full Development Environment)
+
 ############################
 #        4. Build          #
 ############################
@@ -37,12 +42,31 @@ Mac OS X:
   3, Set the active scheme to Splayer
   4, Compile
 
+Windows (to be fixed):
+  1, apply patch of FFmpeg (patch -p0 < FFmpeg.patch, might need a Git Shell)
+  2, add the following to FFmpeg\libavformat\tcp.c
+     #ifndef MSG_NOSIGNAL
+     #define MSG_NOSIGNAL 0
+     #endif
+     {TODO FFmpeg.patch could be extended with this, need revision of aotvos}
+  3, open a minGW shell and enter the copied splayer folder (eg.: 'cd c/splayer')
+  4, make -C libffmpeg (be extremely patient)
+  5, execute genwinlib.cmd (convert *.a to *.obj)
+  6, clone Firebreath and checkout to 1.7.0 into msys/../home/splayer folder
+     {TODO check if this version is appropriate for Mac OS X too, then we can move to it}
+  7, change genw.cmd in order to have a project for VS 2012 ("Firebreath\prep2012.cmd" projects build)
+     {TODO This might be cahnged permanently, wait for testing}
+  8, execute genw.cmd
+  9, Open and build 'build/FireBreath.sln' with Visual Studio 2012
+ 10, register 'build\bin\SPlayer\Debug\npSPlayer.dll' with C:\Windows\SysWOW64\regsvr32.exe
+
 ############################
 #        4. Credits        #
 ############################
 
  Máté Koch
  Attila Ötvös
+ Tamás Szabó
 
                                                                                
                                                              #                   
@@ -70,6 +94,6 @@ Mac OS X:
                                       #####   ###  ##       ###    ###      #    
                                           ###     ##         ###  ###########           
 						    
-                                        Copyright (c) 2012 CAE Engineering Kft.
+                                    Copyright (c) 2012-2013 CAE Engineering Kft.
 
 
