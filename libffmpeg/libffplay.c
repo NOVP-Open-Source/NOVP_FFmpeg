@@ -4018,14 +4018,14 @@ static void alloc_picture(void *opaque)
             do_exit(is);
         }
         mpi_alloc++;
-        if(is->slotinfo->w && is->slotinfo->h) {
-            vp->tempimg = alloc_mpi(vp->width, vp->height, is->slotinfo->video_info.format);
-            if (!vp->tempimg || vp->tempimg->stride[0] < vp->width) {
+        if(is->slotinfo->w && is->slotinfo->h && (is->slotinfo->w/DEBUG_DIVIMGSIZE!=vp->owidth || is->slotinfo->h/DEBUG_DIVIMGSIZE!=vp->oheight)) {
+            vp->tempimg = alloc_mpi(vp->owidth, vp->oheight, is->slotinfo->imgfmt);
+            if (!vp->tempimg || vp->tempimg->stride[0] < vp->owidth) {
                 /* SDL allocates a buffer smaller than requested if the video
                  * overlay hardware is unable to support the requested size. */
                 av_log(NULL, AV_LOG_ERROR, "[error] Error: the video system does not support an image\n"
                                 "size of %dx%d pixels. Try using -lowres or -vf \"scale=w:h\"\n"
-                                "to reduce the image size.\n", vp->width, vp->height );
+                                "to reduce the image size.\n", vp->owidth, vp->oheight );
                 do_exit(is);
             }
             mpi_alloc++;
@@ -4043,6 +4043,7 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
     VideoPicture *vp;
     double frame_delay, pts = pts1;
     double st,et;
+    int h;
 
     /* compute the exact PTS for the picture if it is omitted in the stream
      * pts1 is the dts of the pkt / pts of the frame */
@@ -4084,8 +4085,8 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         vp->width  != is->out_video_filter->inputs[0]->w ||
         vp->height != is->out_video_filter->inputs[0]->h) {
 #else
-        vp->width != is->video_st->codec->width/DEBUG_DIVIMGSIZE ||
-        vp->height != is->video_st->codec->height/DEBUG_DIVIMGSIZE) {
+        vp->width != (is->slotinfo->w?is->slotinfo->w/DEBUG_DIVIMGSIZE:is->video_st->codec->width/DEBUG_DIVIMGSIZE) ||
+        vp->height != (is->slotinfo->h?is->slotinfo->h/DEBUG_DIVIMGSIZE:is->video_st->codec->height/DEBUG_DIVIMGSIZE)) {
 #endif
         event_t event;
 
@@ -4170,11 +4171,11 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         } else {
             if(vp->tempimg) {
                 is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                    vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
+                    vp->owidth, vp->oheight, vp->pix_fmt, vp->owidth, vp->oheight,
                     is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
                 is->img_scale_ctx = sws_getCachedContext(is->img_scale_ctx,
-                    vp->owidth, vp->oheight, vp->pix_fmt, vp->width, vp->height,
-                    vp->pix_fmt, is->sws_flags, NULL, NULL, NULL);
+                    vp->owidth, vp->oheight, is->pix_fmt, vp->width, vp->height,
+                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
             } else {
                 is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
                     vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
@@ -4235,12 +4236,12 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
 #endif
         {
             if(vp->tempimg) {
-                sws_scale(is->img_scale_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
-                          0, vp->height, tpict.data, tpict.linesize);
-                sws_scale(is->img_convert_ctx, tpict.data, tpict.linesize,
-                          0, vp->height, pict.data, pict.linesize);
+                h=sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                          0, vp->oheight, tpict.data, tpict.linesize);
+                h=sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
+                          0, vp->oheight, pict.data, pict.linesize);
             } else {
-                sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                h=sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
                           0, vp->height, pict.data, pict.linesize);
             }
         }

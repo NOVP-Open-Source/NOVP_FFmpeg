@@ -37,6 +37,7 @@ static void* audio_priv = NULL;
 typedef struct {
     int run;
     Window hwnd;
+    FB::PluginWindow* win;
 
     char* filename;
     void* playpriv;
@@ -58,6 +59,7 @@ struct PlayerContext
     pthread_t thread;
 
     Window hwnd;
+    FB::PluginWindow* win;
     std::string error;
     std::string file;
     int slotId;
@@ -146,6 +148,7 @@ fprintf(stderr,"****************** activateVideo: %d join OK\n",context->slotId)
             context->video_priv->run=1;
             context->video_priv->filename=strdup(context->file.c_str());
             context->video_priv->hwnd=context->hwnd;
+            context->video_priv->win=context->win;
 #ifdef DEBUGPRINT
 fprintf(stderr,"****************** activateVideo: %d create\n",context->slotId);
 #endif
@@ -223,6 +226,11 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
         FB::PluginWindowX11* wnd = reinterpret_cast<FB::PluginWindowX11*>(pluginWindow);
         hwnd = wnd->getWindow();
         m_context->hwnd = hwnd;
+        m_context->win = pluginWindow;
+        if(m_context->video_priv) {
+            m_context->video_priv->hwnd = hwnd;
+            m_context->video_priv->win = pluginWindow;
+        }
 #ifdef DEBUGPRINT
 fprintf(stderr,"XXXXXXXXX setWindow: %d pluginWindow: %p hwnd: %x\n",slotId,pluginWindow,hwnd);
 #endif
@@ -291,8 +299,11 @@ bool MediaPlayer::open(const std::string& url)
 {
     m_context->file = url;
     activateVideo(m_context);
-//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
+
+//    xplayer_API_setimage(slotId, 640, 480, IMGFMT_RGB24);
     xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
+
+//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
 //    xplayer_API_setimage(slotId, 1920, 1440, IMGFMT_RGB24);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_YV12);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_I420);
@@ -503,6 +514,8 @@ extern "C" {
         int h=0;
         int winw = 640;
         int winh = 480;
+        int owinw = 0;
+        int owinh = 0;
 
         double stime=0.0;
         double etime=0.0;
@@ -614,7 +627,13 @@ extern "C" {
                 }
             }
 
-            if(g_window != priv->hwnd) {
+            if(priv->win) {
+                FB::Rect pos = priv->win->getWindowPosition();
+                winw = pos.right-pos.left;
+                winh = pos.bottom-pos.top;
+            }
+
+            if(g_window != priv->hwnd || (priv->win && (owinw!=winw || owinh!=winh))) {
                 setst(priv->slot, 2);
                 if(g_window != None) {
                     glXDestroyContext(g_pDisplay, glxContext);
@@ -622,6 +641,12 @@ extern "C" {
                 g_window = priv->hwnd;
 
                 if(g_window != None) {
+                    if(priv->win) {
+                        FB::Rect pos = priv->win->getWindowPosition();
+                        owinw = pos.right-pos.left;
+                        owinh = pos.bottom-pos.top;
+                    }
+//                    xplayer_API_setimage(priv->slot, owinw, owinh, IMGFMT_RGB24);
                     setst(priv->slot, 3);
                     // Create an OpenGL rendering context
                     glxContext = glXCreateContext( g_pDisplay,
