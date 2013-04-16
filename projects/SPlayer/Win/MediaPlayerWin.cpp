@@ -36,6 +36,7 @@ Copyright 2009 Georg Fritzsche,
 #include "AoDirect.h"
 #include "libxplayer.h"
 #include "af_format.h"
+#include "D3Drender.h"
 
 #include <dsound.h>
 
@@ -69,6 +70,8 @@ typedef struct {
 static HANDLE aTh[1];
 static DWORD aThId[1];
 static int aThRun = 0;
+
+static D3Drender d3drender;
 
 struct PlayerContext 
 {
@@ -777,15 +780,24 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
                     img->planes[1] = img->planes[2];
                     img->planes[2] = tmp;
                 }
+             
  				if(hwnd && w && h) {
-					if(w && h) {
+					/*
+                    if(w && h) {
 						if ( owinw != winw || owinh != winh) {
 							slog("Resize required: new size is %d, %d\n",winw, winh);
 							xplayer_API_setimage(priv->slot, winw, winh, IMGFMT_BGR32);
 							owinw=winw;
 							owinh=winh;
 						}	
-					}
+					}//w&&h
+                    */
+
+                    //send texture to d3drender (if device is not ready, it returns without doing anything)
+                       d3drender.setBuffer(w,h, img->planes[0]);
+                    
+                    
+                    /*
 					slog("create bitmap ...\n");
 					hBitmap = CreateBitmap(w,h,1,32,img->planes[0]);
 					slog("hBitmap: %p\n",hBitmap);
@@ -796,15 +808,25 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 					ReleaseDC(hwnd, hdc);
 					DeleteDC(hdcMem);
 					DeleteObject(hBitmap);
-				}
+                    */
+				}//ifhwnd&&w&&h
+
                 if(img->imgfmt==IMGFMT_I420) {
 					unsigned char* tmp = img->planes[1];
                     img->planes[1] = img->planes[2];
                     img->planes[2] = tmp;
                 }
                 xplayer_API_imagedone(priv->slot);
-            }
-		}
+            }//if(img)
+		}//newimage
+        
+            //render direct3d even if a video is not running; (if no video loaded you just get a blank picture)
+            if (hwnd)
+            {
+                d3drender.init(hwnd); //note: safe to call every frame
+                d3drender.render(); //render image
+            }//endif
+
         ltime=etime;
         etime=xplayer_clock();
         Sleep(40);
@@ -813,7 +835,10 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
         {
             break;
         }
-    }
+    }//wend
+
+	d3drender.release(); //release directx9 context
+
 	slog("end of video process\n");
     xplayer_API_videoprocessdone(priv->slot);
     priv->run=0;
