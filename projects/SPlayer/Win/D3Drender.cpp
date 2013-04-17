@@ -29,6 +29,13 @@ static int getNearPowTwo(int num);
             #endif
 
 		     d3d = Direct3DCreate9(D3D_SDK_VERSION);
+             
+             //occurs when there is more than one window -- not sure why
+             if (d3d == 0)
+             {
+                 slog("D3Drender error -- cannot create device \n");
+                 return;
+             }//endif
 
 			    D3DPRESENT_PARAMETERS d3dpp;
 

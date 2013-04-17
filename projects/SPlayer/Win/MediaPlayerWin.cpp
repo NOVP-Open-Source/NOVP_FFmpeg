@@ -71,8 +71,6 @@ static HANDLE aTh[1];
 static DWORD aThId[1];
 static int aThRun = 0;
 
-static D3Drender d3drender;
-
 struct PlayerContext 
 {
     int w;
@@ -130,7 +128,7 @@ namespace
 			audio_uninit(context->pDataArray->aoconf, 0);
 		context->pDataArray->aoconf=NULL;
 		CloseHandle(context->hThreadArray[VO_THREAD]);
-		CloseHandle(context->hThreadArray[AO_THREAD]);
+	//	CloseHandle(context->hThreadArray[AO_THREAD]); 
 	}
 		
 		context->pDataArray->file=context->file;
@@ -326,7 +324,7 @@ bool MediaPlayer::stop()
 			audio_uninit(m_context->pDataArray->aoconf, 0);
 		m_context->pDataArray->aoconf=NULL;
 		CloseHandle(m_context->hThreadArray[VO_THREAD]);
-		CloseHandle(m_context->hThreadArray[AO_THREAD]);
+		//CloseHandle(m_context->hThreadArray[AO_THREAD]);
 	}
     m_context->pDataArray->mode = 0;
     return true;
@@ -745,8 +743,9 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 	HDC hdcMem;
 	BITMAP bitmap;
 	HBITMAP hBitmap;              
-					
-
+				
+    D3Drender d3dlocal; //needs to be local to thread
+       
 
     priv->run|=1;
     while(priv->run) {
@@ -765,6 +764,8 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 			winh = pos.bottom-pos.top;
 //			slog("Window size is %d, %d\n",winw, winh);
 		}
+        
+        
 		if(xplayer_API_isnewimage(priv->slot))
         {
 			xplayer_API_getimage(priv->slot, &img);
@@ -794,7 +795,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
                     */
 
                     //send texture to d3drender (if device is not ready, it returns without doing anything)
-                       d3drender.setBuffer(w,h, img->planes[0]);
+                       d3dlocal.setBuffer(w,h, img->planes[0]);
                     
                     
                     /*
@@ -823,8 +824,8 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
             //render direct3d even if a video is not running; (if no video loaded you just get a blank picture)
             if (hwnd)
             {
-                d3drender.init(hwnd); //note: safe to call every frame
-                d3drender.render(); //render image
+                d3dlocal.init(hwnd); //note: safe to call every frame
+                d3dlocal.render(); //render image
             }//endif
 
         ltime=etime;
@@ -837,7 +838,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
         }
     }//wend
 
-	d3drender.release(); //release directx9 context
+	d3dlocal.release(); //release directx9 context
 
 	slog("end of video process\n");
     xplayer_API_videoprocessdone(priv->slot);
