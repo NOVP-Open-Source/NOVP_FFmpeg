@@ -143,6 +143,8 @@ namespace
 		context->pDataArray->filename=strdup(context->file.c_str());
         context->n++;
 
+        context->pDataArray->slot = context->slot;
+
 #if 0
 	context->hThreadArray[AO_THREAD] = CreateThread(
             NULL,                       // default security attributes
@@ -765,8 +767,8 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 //			slog("Window size is %d, %d\n",winw, winh);
 		}
         
-        
-		if(xplayer_API_isnewimage(priv->slot))
+        //(note: might return -1 which is also true, but its not intended to be)
+		if(xplayer_API_isnewimage(priv->slot) > 0)
         {
 			xplayer_API_getimage(priv->slot, &img);
 			if(img && (w!=img->w || h!=img->h)) {
