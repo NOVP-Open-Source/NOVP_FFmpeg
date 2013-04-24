@@ -198,10 +198,11 @@ MediaPlayer::~MediaPlayer()
 {
     HRESULT hr;
 
+    stop();
+
     m_context->pDataArray->run = 0;
     m_context->pDataArray->mode = 0;
 
-    stop();
 }
 
 void MediaPlayer::StaticInitialize()
