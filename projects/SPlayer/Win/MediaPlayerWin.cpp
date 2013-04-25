@@ -271,7 +271,7 @@ const std::string& MediaPlayer::lastError() const
 bool MediaPlayer::open(const std::string& url)
 {
     m_context->file = url;
-    activateVideo(m_context);
+    //activateVideo(m_context);
     xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_YV12);
@@ -280,6 +280,12 @@ bool MediaPlayer::open(const std::string& url)
 
     xplayer_API_loadurl(slotId, (char*)url.c_str());
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
+
+    //temporal fix (we seem to have a race condition here)
+    //(fixes the problem where you need to load twice when changing the url)
+    Sleep(500); 
+     activateVideo(m_context);
+
     return false;
 }
 
