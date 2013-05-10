@@ -1,0 +1,9 @@
+*.o
+*.a
+*.exe
+*.lib
+configure.log
+debugview
+config.h
+ffmpeg_config.h
+lib/

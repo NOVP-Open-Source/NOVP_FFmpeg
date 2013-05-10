@@ -383,6 +383,8 @@ int             xplayer_API_getgroup(int slot);
 void            xplayer_API_settimeshift(int slot, double time);
 int             xplayer_API_groupplay(int slot);
 int             xplayer_API_groupstop(int slot);
+int             xplayer_API_seekfinished(int slot);
+int             xplayer_API_stepframe(int slot, int frame);
 int             xplayer_API_groupseekpos(int slot, double pos);
 
 int             xplayer_API_setimage(int slot, int w, int h, unsigned int fmt);
@@ -403,6 +405,7 @@ int             xplayer_API_enableaudio(int slot, int enable);
 int             xplayer_API_play(int slot);
 int             xplayer_API_pause(int slot);
 int             xplayer_API_pause_step(int slot);
+int             xplayer_API_stepnumber(int slot, int step);
 int             xplayer_API_stop(int slot);
 int             xplayer_API_seek(int slot, double pos);
 int             xplayer_API_seekpos(int slot, double pos);
@@ -430,6 +433,7 @@ int             xplayer_API_freeimage(int slot, mp_image_t* img);
 int             xplayer_API_videoprocessdone(int slot);
 
 int             xplayer_API_isvda(int slot);
+int             xplayer_API_getcallplayerstatus(int slot);
 
 int             xplayer_API_getvdaframe(int slot, void** vdaframe);
 int             xplayer_API_vdaframedone(int slot);
@@ -458,10 +462,7 @@ int             xplayer_API_getaudio_format();
 
 char*           xplayer_API_getstatusline(int slot);
 void            xplayer_API_freestatusline(char* line);
-
-void            slog(const char *format_str, ...);
-
-
+int             xplayer_API_isbuffering(int slot);
 #ifdef __cplusplus
 };
 #endif

@@ -37,6 +37,7 @@
 #define GROUP_PAUSE_CLEAR_EVENT 1011
 #define GROUP_PAUSE_SET_EVENT   1012
 #define GROUP_SEEK_EVENT        1013
+#define STEP_FRAME              1014
 
 #define INVALID_FRAME           0
 #define INVALID_DELAY           1
@@ -97,6 +98,7 @@ struct slotinfo_st {
     int                 pauseafterload;
     int                 pausereq;
     int                 pauseseekreq;
+	int                 buffering;
 
     int                 w;
     int                 h;
@@ -182,6 +184,9 @@ struct slotinfo_st {
     void*               opt_def;
 
     char                statusline[STATUSLINE_SIZE];
+
+    int                 callplayerstatus;
+
 };
 
 typedef struct {

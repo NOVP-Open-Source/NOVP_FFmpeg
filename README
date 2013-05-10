@@ -2,98 +2,38 @@
 #     1. Introduction      #
 ############################
 
- Name: CAE SPlayer Plugin v1.0.0
- Description: Stream player with extensive syncronization capabilities
+ Name: NOVP FFmpeg v1.4.0.8
+ Description: FFmpeg fork from Splayer with frame accuracy options
 
- Lincensing         -> LICENSE
- History            -> NEWS
+ Licensing          -> LICENSE
  
  To clone the repository with all the submodules use 
-   git clone --recursive git://github.com/Cae-Engineering/splayer
+   git clone --recursive git://github.com/bor0/NOVP_FFmpeg
+
+ After cloning, make sure to apply FFmpeg.patch
 
 ############################
-#       2. Libraries       #
-############################
-
- Firebreath 
- FFmpeg
-
-############################
-#     3. Dependencies      #
-############################ 
-
-Mac OS X:
- cmake 
- xcode
-
-Windows
- minGW (/w MSYS Basic System and MinGW Developer ToolKit)
- cmake (add CMake to the system PATH)
- patch (included in git)
- Windows Driver Kit Version 7.1.0 (Full Development Environment)
-
-############################
-#        4. Build          #
+#        2. Build          #
 ############################
 
 Mac OS X:
-  1, ./mac.sh
-  2, Open 'build/FireBreath.xcodeproj' with XCode
-  3, Set the active scheme to Splayer
-  4, Compile
+  1. make -C libffmpeg
 
 Windows (to be fixed):
-  1, apply patch of FFmpeg (patch -p0 < FFmpeg.patch, might need a Git Shell)
-  2, add the following to FFmpeg\libavformat\tcp.c
-     #ifndef MSG_NOSIGNAL
-     #define MSG_NOSIGNAL 0
-     #endif
-     {TODO FFmpeg.patch could be extended with this, need revision of aotvos}
-  3, open a minGW shell and enter the copied splayer folder (eg.: 'cd c/splayer')
-  4, make -C libffmpeg (be extremely patient)
-  5, execute genwinlib.cmd (convert *.a to *.obj)
-  6, clone Firebreath and checkout to 1.7.0 into msys/../home/splayer folder
-     {TODO check if this version is appropriate for Mac OS X too, then we can move to it}
-  7, change genw.cmd in order to have a project for VS 2012 ("Firebreath\prep2012.cmd" projects build)
-     {TODO This might be cahnged permanently, wait for testing}
-  8, execute genw.cmd
-  9, Open and build 'build/FireBreath.sln' with Visual Studio 2012
- 10, register 'build\bin\SPlayer\Debug\npSPlayer.dll' with C:\Windows\SysWOW64\regsvr32.exe
+  1. Launch mingw
+  2. Write make -C libffmpeg
+  3. Launch genwinlib.cmd to convert the generated libraries to MSVC format
+
+NOTE: To clean, run clean.sh
+NOTE: To force make, write "make -B -C libffmpeg"
 
 ############################
-#        4. Credits        #
+#        3. Credits        #
 ############################
 
+ NOVP Team (www.novp.com)
+
+ CAE-Engineering team (www.cae-engineering.hu):
  Máté Koch
  Attila Ötvös
  Tamás Szabó
-
-                                                                               
-                                                             #                   
-                                                       ######                   
-                                                   #########                    
-                                              #############                     
-                                         ##################                     
-                                     #####################                      
-                                 ########################                       
-                            #############################                       
-                       ######################      #####                        
-                  ##################             ######                         
-             ##############                   ########                          
-         #########                          ##########                          
-     ######                                ###########                           
- ####                                                                               
-                                                                                
-                                         ######         #         ###########    
-                                      ####     ##      ###         ###      #    
-                                     ###        #     #####        ###          
-                                    ####              # ###        ###   #      
-                                    ####             ##  ###       #######      
-                                    ####            #########      ###   #      
-                                     ####           ##    ####     ###          
-                                      #####   ###  ##       ###    ###      #    
-                                          ###     ##         ###  ###########           
-						    
-                                    Copyright (c) 2012-2013 CAE Engineering Kft.
-
-

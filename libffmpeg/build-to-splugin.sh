@@ -1,4 +1,5 @@
 #!/bin/bash
+
 dest="$@"
 
 avutildir="libavutil"
@@ -57,7 +58,15 @@ if test "" == "$dest" ; then
     exit 1
 fi
 
-./configure --disable-yasm --disable-doc --disable-ffmpeg --disable-ffprobe --disable-ffserver --disable-dxva2 --enable-runtime-cpudetect --disable-muxers --disable-bsfs
+###mingw
+if test ${TERM} == "cygwin" ; then
+#remember to change winsock.h include to winsock2.h in dtls1.h (openssl). what a hack.
+    ./configure --disable-doc --disable-ffmpeg --disable-ffprobe --disable-ffserver --disable-dxva2 --enable-runtime-cpudetect --disable-muxers --disable-bsfs --enable-openssl
+###mac
+else
+    ./configure --disable-doc --disable-ffmpeg --disable-ffprobe --disable-ffserver --disable-dxva2 --enable-runtime-cpudetect --disable-muxers --disable-bsfs --enable-openssl --extra-cflags="-arch i386" --extra-ldflags='-arch i386 -read_only_relocs suppress' --arch=x86_32 --target-os=darwin --enable-cross-compile
+fi
+
 make
 if test ! $? == 0 ; then
     exit 1
@@ -89,3 +98,4 @@ cp "config.h" "$dest/ffmpeg_config.h"
 #make clean
 
 echo "Install dir: $dest"
+

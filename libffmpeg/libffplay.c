@@ -128,6 +128,11 @@ typedef struct {
     int h;
 } rect_t;
 
+int triggermeh = 0;
+int dont = 0;
+int laserbeams = 0;
+int lastret = 0;
+
 static pthread_mutex_t xplayer_global_mutex;
 static xplayer_global_status_t * xplayer_global_status = NULL;
 void* dmem = NULL;
@@ -141,7 +146,7 @@ const uint8_t extra_data[] = {
 	0x01, 0x42 ,0x00 ,0x29 ,0xff ,0xe1 ,0x00 ,0x14 ,0x67 ,0x42 ,0x00 ,0x29 ,0xe2 ,0x90 ,0x0f ,0x00 ,0x44 ,0xfc ,0xb8 ,0x0b ,0x70 ,0x10 ,0x10 ,0x1a ,0x41 ,0xe2 ,0x44 ,0x54 ,0x01 ,0x00 ,0x04 ,0x68 ,0xce ,0x3c ,0x80};
 
 #undef fprintf
-void slog(const char *format_str, ...) {
+void slog(char *format_str, ...) {
     va_list ap;
     char line[8192];
 
@@ -1394,6 +1399,8 @@ int xplayer_API_loadurl(int slot, char* url) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     event_t event;
 
+    slotinfo->callplayerstatus = 0;
+
     if(!url) {
         return -1;
     }
@@ -1603,6 +1610,18 @@ int xplayer_API_flush(int slot) {
     return ret;
 }
 
+int isstep = 0;
+
+int xplayer_API_stepnumber(int slot, int step) {
+    isstep = step;
+    return xplayer_API_pause_step(slot);
+}
+
+int xplayer_API_isbuffering(int slot) {
+    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
+    return slotinfo->buffering;
+}
+
 int xplayer_API_pause_step(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     int ret = -1;
@@ -1637,6 +1656,24 @@ int xplayer_API_stop(int slot) {
         event.data = slotinfo->streampriv;
         push_event(slotinfo->eventqueue, &event);
         ret=0;
+    }
+    pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
+    return ret;
+}
+
+int xplayer_API_stepframe(int slot, int frame) {
+    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
+    int ret = -1;
+    event_t event;
+
+    apicall(slot, 15);
+    pthread_mutex_lock(&slotinfo->mutex);
+    if(slotinfo->url && slotinfo->status) {
+        event.type = STEP_FRAME;
+        event.vdouble = frame;
+        event.data = NULL;
+        push_event(slotinfo->eventqueue, &event);
     }
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
@@ -1761,6 +1798,17 @@ int xplayer_API_getmute(int slot) {
     return ret;
 }
 
+int xplayer_API_getcallplayerstatus(int slot) {
+    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
+    int ret;
+
+    apicall(slot, 22);
+    pthread_mutex_lock(&slotinfo->mutex);
+    ret=slotinfo->callplayerstatus;
+    pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
+    return ret;
+}
 
 int xplayer_API_getstatus(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
@@ -1772,6 +1820,12 @@ int xplayer_API_getstatus(int slot) {
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
     return ret;
+}
+
+int xplayer_API_seekfinished(int slot) {
+    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
+
+    return triggermeh == 0;
 }
 
 double xplayer_API_getcurrentpts(int slot) {
@@ -2377,9 +2431,7 @@ typedef struct VideoPicture {
     int64_t pos;                                 ///<byte position in file
     int skip;
     mp_image_t* bmp;
-    mp_image_t* tempimg;
     int width, height; /* source height & width */
-    int owidth, oheight; /* source height & width */
     int allocated;
     int reallocate;
     enum PixelFormat pix_fmt;
@@ -2532,7 +2584,6 @@ typedef struct VideoState {
     pthread_cond_t pictq_cond;
 #if !CONFIG_AVFILTER
     struct SwsContext *img_convert_ctx;
-    struct SwsContext *img_scale_ctx;
 #endif
 
     char filename[1024];
@@ -3233,15 +3284,6 @@ static void stream_close(VideoState *is)
             }
         }
         vp->bmp = NULL;
-        if(vp->tempimg) {
-            if(is->slotinfo->doneflag) {
-                free_mp_image(vp->tempimg);
-                mpi_free++;
-            } else {
-                add_freeable_image(is->slotinfo, vp->tempimg);
-            }
-        }
-        vp->tempimg = NULL;
         if(vp->vdaframe) {
             if(is->slotinfo->doneflag)
 #if defined(__APPLE__)
@@ -3270,8 +3312,6 @@ static void stream_close(VideoState *is)
 #if !CONFIG_AVFILTER
     if (is->img_convert_ctx)
         sws_freeContext(is->img_convert_ctx);
-    if (is->img_scale_ctx)
-        sws_freeContext(is->img_scale_ctx);
 #endif
     pthread_mutex_lock(&slotinfo->audiomutex);
     is->slotinfo->streampriv=NULL;
@@ -3944,15 +3984,6 @@ static void alloc_picture(void *opaque)
         }
     }
     vp->bmp=NULL;
-    if (vp->tempimg) {
-        if(is->slotinfo->doneflag) {
-            free_mp_image(vp->tempimg);
-            mpi_free++;
-        } else {
-            add_freeable_image(is->slotinfo, vp->tempimg);
-        }
-    }
-    vp->tempimg=NULL;
     if(vp->vdaframe) {
         if(is->slotinfo->doneflag) {
 #if defined(__APPLE__)
@@ -3974,18 +4005,10 @@ static void alloc_picture(void *opaque)
 
     vp->width   = is->out_video_filter->inputs[0]->w;
     vp->height  = is->out_video_filter->inputs[0]->h;
-    vp->owidth   = is->out_video_filter->inputs[0]->w;
-    vp->oheight  = is->out_video_filter->inputs[0]->h;
     vp->pix_fmt = is->out_video_filter->inputs[0]->format;
 #else
-    vp->owidth   = is->video_st->codec->width/DEBUG_DIVIMGSIZE;
-    vp->oheight  = is->video_st->codec->height/DEBUG_DIVIMGSIZE;
     vp->width   = is->video_st->codec->width/DEBUG_DIVIMGSIZE;
     vp->height  = is->video_st->codec->height/DEBUG_DIVIMGSIZE;
-    if(is->slotinfo->w && is->slotinfo->h) {
-        vp->width   = is->slotinfo->w/DEBUG_DIVIMGSIZE;
-        vp->height  = is->slotinfo->h/DEBUG_DIVIMGSIZE;
-    }
     vp->pix_fmt = is->video_st->codec->pix_fmt;
 #endif
     if(is->slotinfo->fps==0.0)
@@ -4018,18 +4041,6 @@ static void alloc_picture(void *opaque)
             do_exit(is);
         }
         mpi_alloc++;
-        if(is->slotinfo->w && is->slotinfo->h && (is->slotinfo->w/DEBUG_DIVIMGSIZE!=vp->owidth || is->slotinfo->h/DEBUG_DIVIMGSIZE!=vp->oheight)) {
-            vp->tempimg = alloc_mpi(vp->owidth, vp->oheight, is->slotinfo->imgfmt);
-            if (!vp->tempimg || vp->tempimg->stride[0] < vp->owidth) {
-                /* SDL allocates a buffer smaller than requested if the video
-                 * overlay hardware is unable to support the requested size. */
-                av_log(NULL, AV_LOG_ERROR, "[error] Error: the video system does not support an image\n"
-                                "size of %dx%d pixels. Try using -lowres or -vf \"scale=w:h\"\n"
-                                "to reduce the image size.\n", vp->owidth, vp->oheight );
-                do_exit(is);
-            }
-            mpi_alloc++;
-        }
     }
 
     pthread_mutex_lock(&is->pictq_mutex);
@@ -4043,7 +4054,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
     VideoPicture *vp;
     double frame_delay, pts = pts1;
     double st,et;
-    int h;
 
     /* compute the exact PTS for the picture if it is omitted in the stream
      * pts1 is the dts of the pkt / pts of the frame */
@@ -4085,8 +4095,8 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         vp->width  != is->out_video_filter->inputs[0]->w ||
         vp->height != is->out_video_filter->inputs[0]->h) {
 #else
-        vp->width != (is->slotinfo->w?is->slotinfo->w/DEBUG_DIVIMGSIZE:is->video_st->codec->width/DEBUG_DIVIMGSIZE) ||
-        vp->height != (is->slotinfo->h?is->slotinfo->h/DEBUG_DIVIMGSIZE:is->video_st->codec->height/DEBUG_DIVIMGSIZE)) {
+        vp->width != is->video_st->codec->width/DEBUG_DIVIMGSIZE ||
+        vp->height != is->video_st->codec->height/DEBUG_DIVIMGSIZE) {
 #endif
         event_t event;
 
@@ -4125,7 +4135,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         }
 #endif
         AVPicture pict;
-        AVPicture tpict;
 #if CONFIG_AVFILTER
         if(vp->picref)
             avfilter_unref_buffer(vp->picref);
@@ -4134,7 +4143,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
 
         /* get a pointer on the bitmap */
         memset(&pict,0,sizeof(AVPicture));
-        memset(&tpict,0,sizeof(AVPicture));
         pthread_mutex_lock(&is->slotinfo->mutex);
         pict.data[0] = vp->bmp->planes[0];
         pict.data[1] = vp->bmp->planes[2];
@@ -4143,16 +4151,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         pict.linesize[0] = vp->bmp->stride[0];
         pict.linesize[1] = vp->bmp->stride[2];
         pict.linesize[2] = vp->bmp->stride[1];
-
-        if(vp->tempimg) {
-            tpict.data[0] = vp->tempimg->planes[0];
-            tpict.data[1] = vp->tempimg->planes[2];
-            tpict.data[2] = vp->tempimg->planes[1];
-
-            tpict.linesize[0] = vp->tempimg->stride[0];
-            tpict.linesize[1] = vp->tempimg->stride[2];
-            tpict.linesize[2] = vp->tempimg->stride[1];
-        }
 
         is->slotinfo->codec_imgfmt=pixfmt2imgfmt(is->video_st->codec->pix_fmt);
         is->slotinfo->codec_w=is->video_st->codec->width;
@@ -4169,26 +4167,11 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
                 vp->width, vp->height, PIX_FMT_UYVY422, vp->width, vp->height,
                 is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
         } else {
-            if(vp->tempimg) {
-                is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                    vp->owidth, vp->oheight, vp->pix_fmt, vp->owidth, vp->oheight,
-                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
-                is->img_scale_ctx = sws_getCachedContext(is->img_scale_ctx,
-                    vp->owidth, vp->oheight, is->pix_fmt, vp->width, vp->height,
-                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
-            } else {
-                is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                    vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
-                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
-            }
+            is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
+                vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
+                is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
         }
         if (is->img_convert_ctx == NULL) {
-            av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
-            pthread_mutex_unlock(&is->slotinfo->mutex);
-            do_exit(is);
-            return -1;
-        }
-        if (!is->usesvda && vp->tempimg && is->img_scale_ctx == NULL) {
             av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
             pthread_mutex_unlock(&is->slotinfo->mutex);
             do_exit(is);
@@ -4235,15 +4218,8 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         else
 #endif
         {
-            if(vp->tempimg) {
-                h=sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
-                          0, vp->oheight, tpict.data, tpict.linesize);
-                h=sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
-                          0, vp->oheight, pict.data, pict.linesize);
-            } else {
-                h=sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
-                          0, vp->height, pict.data, pict.linesize);
-            }
+            sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                      0, vp->height, pict.data, pict.linesize);
         }
 #endif
         pthread_mutex_unlock(&is->slotinfo->mutex);
@@ -4261,7 +4237,7 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         pthread_mutex_unlock(&is->pictq_mutex);
     }
 #if defined(__APPLE__)
-    else if (is->usesvda) {
+    else if (is->usesvda && 0) {
         AVPicture pict;
 #if CONFIG_AVFILTER
         if(vp->picref)
@@ -4507,8 +4483,9 @@ static int input_request_frame(AVFilterLink *link)
     AVPacket pkt;
     int ret;
 
-    while (!(ret = get_video_frame(priv->is, priv->frame, &pts, &pkt)))
+    while (!(ret = get_video_frame(priv->is, priv->frame, &pts, &pkt))) {
         av_free_packet(&pkt);
+    }
     if (ret < 0)
         return -1;
 
@@ -4689,7 +4666,7 @@ static void* video_thread(void *arg)
         AVFilterBufferRef *picref;
         AVRational tb = filt_out->inputs[0]->time_base;
 #endif
-        while ((ispaused(is) || globalpause(is->slotinfo)) && !is->videoq.abort_request) {
+        while ((ispaused(is) || globalpause(is->slotinfo)) && !triggermeh && !(is->slotinfo->status&(STATUS_PLAYER_SEEK)) && !is->videoq.abort_request) {
             st=xplayer_clock();
             usleep(1000);
             et=xplayer_clock();
@@ -4727,19 +4704,85 @@ static void* video_thread(void *arg)
 #else
         frame->key_frame=0;
         is->videowait=0;
-        ret = get_video_frame(is, frame, &pts_int, &pkt);
+
+        if (lastret && triggermeh && !(is->slotinfo->status&(STATUS_PLAYER_SEEK))) {
+            int count, sum;
+            int currentframe = 0;
+
+            ok:
+            sum = 0;
+
+            for (count=0;count<100;count++) {
+                sum += is->read_enable;
+                usleep(1000);
+            }
+
+            av_log(NULL, "[debug] video_thread(): ", "sum = %d\n", sum);
+
+            if (sum != 100) {
+                xplayer_API_stepframe(is->slotinfo->slotid, triggermeh);
+                is->step = 0;
+            } else {
+                if (is->video_st->time_base.den != 0)
+                currentframe = (double)(pts_int * is->slotinfo->fps/(is->video_st->time_base.den));
+
+                is->step = triggermeh - currentframe;
+
+                av_log(NULL, "[debug] video_thread(): ", "lastret = %d, is->step = %d, triggermeh = %d, currentframe = %d\n", lastret, is->step, triggermeh, currentframe);
+
+                if (is->step == -1) laserbeams = 1;
+
+                if (is->step == 0) { // we are lucky! keyframe == frame...
+                    triggermeh = 0;
+                    dont = 1;
+                }
+
+                else if ((triggermeh+1)%AV_TIME_BASE == 0 || is->step < 0 || currentframe < 0) {
+                    if ((triggermeh+1)%AV_TIME_BASE == 0) triggermeh = (triggermeh + 1)/AV_TIME_BASE;
+                    xplayer_API_stepframe(is->slotinfo->slotid, triggermeh);
+                    is->step = 0;
+                }
+                else triggermeh = 0;
+            }
+        }
+
+        if (is->step > 0 && !(is->slotinfo->status&(STATUS_PLAYER_SEEK))) {
+            is->step--;
+            is->valid_delay = INVALID_DELAY; // instant frame show, no delay
+            while (is->step > 0) {
+                is->step--;
+                ret = get_video_frame(is, frame, &pts_int, &pkt);
+                if (ret < 0) {
+                    goto the_end;
+                }
+            }
+            if (!ispaused(is)) {
+                stream_toggle_pause(is);
+                //xplayer_API_pause(is->slotinfo->slotid);
+            }
+        }
+
+        if (is->slotinfo->status&(STATUS_PLAYER_SEEK)) {
+            is->valid_delay = INVALID_DELAY;
+        }
+
+        if (!dont) lastret = ret = get_video_frame(is, frame, &pts_int, &pkt);
+        else dont = 0;
+
         wtime+=is->videowait;
         is->videowait=0.0;
         pos = pkt.pos;
         av_free_packet(&pkt);
 #endif
 
-        if (ret < 0) {
+        if (!dont && ret < 0) {
 #ifdef THREAD_DEBUG
             av_log(NULL, AV_LOG_DEBUG,"[debug] video_thread(): goto end 1 ret=%d, slot: %d 0x%x \n",ret,is->slotinfo->slotid,(unsigned int)is->video_tid);
 #endif
             goto the_end;
         }
+
+        if (!ret) continue;
 
         is->frame_last_filter_delay = av_gettime() / 1000000.0 - is->frame_last_returned_time;
         if (fabs(is->frame_last_filter_delay) > AV_NOSYNC_THRESHOLD / 10.0)
@@ -4754,6 +4797,9 @@ static void* video_thread(void *arg)
             pts = 0.0;
         else
             pts = pts_int*av_q2d(is->video_st->time_base);
+
+        //if (pts_int != 0)
+        //av_log(NULL, "[debug] video_thread(): ", "pts_int = %d, den = %d, calc = %lf\n", pts_int, is->video_st->time_base.den, (double)(pts_int/(is->video_st->time_base.den/is->slotinfo->fps)));
 
 #ifdef THREAD_DEBUG
         if(is->videoq.abort_request)
@@ -4771,7 +4817,7 @@ static void* video_thread(void *arg)
         }
 
         is->videowait=0;
-        ret = queue_picture(is, frame, pts, pos);
+        if (!triggermeh) ret = queue_picture(is, frame, pts, pos);
         wtime+=is->videowait;
         is->videowait=0.0;
 
@@ -4785,9 +4831,6 @@ static void* video_thread(void *arg)
 #endif
             goto the_end;
         }
-
-        if (is->step)
-            stream_toggle_pause(is);
 
         is->vpts = pts;
 
@@ -4874,6 +4917,8 @@ static void* video_thread(void *arg)
         }
     }
  the_end:
+    triggermeh = 0;
+    is->slotinfo->status&=~(STATUS_PLAYER_SEEK);
 #ifdef THREAD_DEBUG
     if(is->slotinfo)
     {
@@ -6481,6 +6526,7 @@ static void* read_thread(void *arg)
         ret = -1;
         goto fail;
     }
+    //ic->probesize=5000000;
     ic->probesize=50000;
     is->ic = ic;
     if(is->slotinfo->genpts)
@@ -6620,6 +6666,9 @@ static void* read_thread(void *arg)
         double d = is->ic->duration/1000000LL;
         printdebugbuffer(is->slotinfo->slotid, "Open streams OK. (%s) Duration: %8.3f", is->filename,d);
     }
+
+    is->slotinfo->callplayerstatus = 3;
+
     for(;;) {
         if(!is->slotinfo->pauseafterload && !(is->slotinfo->status &STATUS_PLAYER_OPENED)) {
             is->slotinfo->status|=(STATUS_PLAYER_OPENED);
@@ -6779,7 +6828,7 @@ static void* read_thread(void *arg)
                 is->read_enable=-1;
             if(!is->realtime)
                 is->slotinfo->pausereq=1;
-            is->valid_delay=INVALID_FRAME;
+            //is->valid_delay=INVALID_FRAME;
             is->seek_pts = is->seek_pos / AV_TIME_BASE;
             pthread_mutex_unlock(&is->event_mutex);
             if((is->slotinfo->debugflag & DEBUGFLAG_DELAY)) {
@@ -6827,15 +6876,10 @@ static void* read_thread(void *arg)
             if(!is->realtime)
                 is->slotinfo->pausereq=1;
             pthread_mutex_lock(&is->event_mutex);
-            if(seek_target) {
-                is->seek_req++;
-            } else {
-                is->seek_req=0;
-                is->slotinfo->pauseseekreq=0;
-            }
+            is->seek_req=0;
+            is->slotinfo->pauseseekreq=0;
             pthread_mutex_unlock(&is->event_mutex);
             eof= 0;
-            is->paused=0;
             readpass(is, -1, 8);
             if(is->last_paused && !is->seek_req && !is->groupsync) {
                 readpass(is, 2, -1);
@@ -6895,12 +6939,14 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
                     is->audio_clock_diff_len=0;
                     is->audio_diff=0;
 
-                    stream_seek(is, is->slotinfo->start_time != AV_NOPTS_VALUE ? is->slotinfo->start_time : 0, 0, 0);
                 }else if(is->slotinfo->autoexit){
                     ret=AVERROR_EOF;
                     goto fail;
                 }
             }
+            //stream_seek(is, is->slotinfo->start_time != AV_NOPTS_VALUE ? is->slotinfo->start_time : 0, 0, 0);
+            //is->paused = 1;
+            //is->video_current_pts = 0;
             eof=0;
             readpass(is, 4, -1);
             continue;
@@ -6912,10 +6958,10 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
         st=xplayer_clock();
         pass=readpass(is, 9, -1);
 //fprintf(stderr,"Slot: %d read ... seek_req: %d\n",is->slotinfo->slotid,is->seek_req);
-        is->reading=1;
+        is->reading=is->slotinfo->buffering=1;
         is->readingtime=xplayer_clock();
         ret = av_read_frame(ic, pkt);
-        is->reading=0;
+        is->reading=is->slotinfo->buffering=0;
         readpass(is, pass, -1);
         et=xplayer_clock();
         wtime+=et-st;
@@ -7046,6 +7092,8 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
     is->slotinfo->status&=~(STATUS_PLAYER_CONNECT|STATUS_PLAYER_OPENED|STATUS_PLAYER_PAUSE);
     /* disable interrupting */
     global_video_state = NULL;
+
+    is->slotinfo->callplayerstatus = 2;
 
     /* close each stream */
     if (is->audio_stream >= 0)
@@ -7214,12 +7262,12 @@ static void toggle_pause(VideoState *is)
     is->step = 0;
 }
 
-static void step_to_next_frame(VideoState *is)
+static void step_to_next_frame(VideoState *is, int step)
 {
     /* if the stream is paused unpause it, then step */
     if (is->paused)
         stream_toggle_pause(is);
-    is->step = 1;
+    is->step = step;
 }
 
 static void event_loop(slotinfo_t* slotinfo)
@@ -7325,7 +7373,12 @@ static void event_loop(slotinfo_t* slotinfo)
             break;
         case PAUSE_STEP_EVENT:
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: step (pause: %d)\n",is->slotinfo->slotid,get_master_clock(is),is->paused);
-            step_to_next_frame(is);
+            int s_step = 2;
+            if (isstep) {
+                s_step = isstep;
+                isstep = 0;
+            }
+            step_to_next_frame(is, s_step);
             break;
         case QUEUE_FLUSH_EVENT:
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: flush (pause: %d)\n",is->slotinfo->slotid,get_master_clock(is),is->paused);
@@ -7348,6 +7401,26 @@ static void event_loop(slotinfo_t* slotinfo)
             is->audio_diff=0;
             is->read_enable=read_enable;
             break;
+        case STEP_FRAME:
+            is->slotinfo->status|=(STATUS_PLAYER_SEEK);
+            pos = event->vdouble / is->slotinfo->fps - laserbeams;
+            laserbeams = 0;
+
+            if (pos < 0 || event->vdouble < 100) pos = 0;
+
+            pos *= AV_TIME_BASE;
+            is->audio_clock = 0.0;
+            is->audio_clock_diff_len = 0;
+            is->audio_diff = 0;
+
+            stream_seek(is, (int64_t)(pos), 0, 0);
+
+            is->slotinfo->seekpos = pos;
+            is->slotinfo->seekflag = 1;
+
+            triggermeh = event->vdouble;
+
+            break;
         case SEEK_EVENT:
             is->slotinfo->status|=(STATUS_PLAYER_SEEK);
             pos = event->vdouble;
@@ -7355,18 +7428,23 @@ static void event_loop(slotinfo_t* slotinfo)
 //            pos = get_master_clock(is);
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): seek: %12.6f %lld\n",pos,(int64_t)(pos * AV_TIME_BASE));
 
+            if (pos == 0) {
+                is->step = triggermeh = dont = 0;
+            }
+
             is->audio_clock = 0.0;
             is->audio_clock_diff_len = 0;
             is->audio_diff=0;
 #ifndef USES_PAUSESEEK
-            if (is->paused) {
+            if (0 && is->paused) {
                 is->pause_seek = 1;
                 is->pause_seek_pos = pos;
                 is->pause_seek_curr = -1.0;
                 toggle_pause(is);
             }
 #endif
-            stream_seek(is, (int64_t)(pos * AV_TIME_BASE), 0, 0);
+            pos *= AV_TIME_BASE;
+            stream_seek(is, (int64_t)(pos), 0, 0);
             break;
         case SEEK_REL_EVENT:
             is->slotinfo->status|=(STATUS_PLAYER_SEEK);
@@ -7445,6 +7523,7 @@ static void *player_process(void *data)
 #ifdef THREAD_DEBUG
             av_log(NULL, AV_LOG_DEBUG,"[debug] player_process(): Open stream: %d %s *****************************\n\n",slotinfo->slotid,slotinfo->currenturl);
 #endif
+            slotinfo->callplayerstatus = 1;
             is = stream_open(slotinfo, slotinfo->currenturl, slotinfo->file_iformat);
         }
         if(is) {

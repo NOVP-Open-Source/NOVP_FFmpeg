@@ -1,8 +1,15 @@
 CC=gcc
 LD=gcc
+
+ifeq ("${TERM}", "cygwin")
 CFLAGS = -g -Wall -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1
+LDFLAGS = 
+else
+CFLAGS = -g -Wall -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1 -arch i386
+LDFLAGS = -arch i386 -read_only_relocs suppress
+endif
+
 FFCFLAGS = -I../FFmpeg $(shell sdl-config --cflags)
-LDFLAGS =
 LIBS = -lz -lm $(shell sdl-config --libs) -lSDL_ttf
 TARGETS = 
 
@@ -104,6 +111,8 @@ clean:
 	@rm -f *.o $(ALL) libxplayer.so.0 libxplayer.so
 	@rm -f configure.log config.h
 
+distclean: dist-clean
+
 dist-clean:
 	@rm -f *.o $(TARGETS)
 	@rm -fr lib
@@ -115,6 +124,3 @@ dist-clean:
 	@rm -fr libxplayer.lib
 	@rm -f *.o $(ALL) libxplayer.so.0 libxplayer.so
 	@rm -f configure.log config.h
-
-
-
