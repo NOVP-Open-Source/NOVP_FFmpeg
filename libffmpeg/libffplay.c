@@ -429,13 +429,9 @@ static slotinfo_t* init_slotinfo(int slot) {
     av_log(NULL, AV_LOG_DEBUG,"[debug] init_slotinfo(): alloc slotinfo: %d\n",slot);
     slotinfo=av_malloc(sizeof(slotinfo_t));
     memset(slotinfo,0,sizeof(slotinfo_t));
-    slotinfo->next=xplayer_global_status->slotinfo;
-    if(slotinfo->next) {
-        slotinfo->next->prev=slotinfo;
-    }
-    slotinfo->prev=NULL;
-    xplayer_global_status->slotinfo=slotinfo;
-    slotinfo->slotid=slot;
+    pthread_mutex_init(&slotinfo->mutex, NULL);
+    pthread_mutex_init(&slotinfo->audiomutex, NULL);
+    pthread_cond_init(&slotinfo->freeable_cond, NULL);
     if(xplayer_global_status->forcevolume)
         slotinfo->volume=xplayer_global_status->forcevolume;
     else
@@ -470,11 +466,15 @@ static slotinfo_t* init_slotinfo(int slot) {
     if(slot>=0 && slot<SLOT_MAX_CACHE) {
         xplayer_global_status->slotinfo_chache[slot]=slotinfo;
     }
+    slotinfo->slotid=slot;
     xplayer_global_status->groups[0].used++;
+    slotinfo->next=xplayer_global_status->slotinfo;
+    if(slotinfo->next) {
+        slotinfo->next->prev=slotinfo;
+    }
+    slotinfo->prev=NULL;
+    xplayer_global_status->slotinfo=slotinfo;
     group_update_master(0);
-    pthread_mutex_init(&slotinfo->mutex, NULL);
-    pthread_mutex_init(&slotinfo->audiomutex, NULL);
-    pthread_cond_init(&slotinfo->freeable_cond, NULL);
     return slotinfo;
 }
 
@@ -1122,6 +1122,8 @@ static void free_freeable_slot() {
                 slotinfo->groupid=-1;
                 if(xplayer_global_status->groups[oldgroup].master_slot==slotinfo->slotid)
                     group_update_master(oldgroup);
+                pthread_mutex_destroy(&slotinfo->mutex);
+                pthread_cond_destroy(&slotinfo->freeable_cond);
                 av_free(slotinfo);
                 freeslot=1;
             }
@@ -4727,6 +4729,7 @@ static void* video_thread(void *arg)
 #else
         frame->key_frame=0;
         is->videowait=0;
+        memset(&pkt,0,sizeof(AVPacket));
         ret = get_video_frame(is, frame, &pts_int, &pkt);
         wtime+=is->videowait;
         is->videowait=0.0;
@@ -7464,8 +7467,6 @@ static void *player_process(void *data)
         av_free(slotinfo->opt_def);
     if(slotinfo->sws_opts)
         sws_freeContext(slotinfo->sws_opts);
-    pthread_mutex_destroy(&slotinfo->mutex);
-    pthread_cond_destroy(&slotinfo->freeable_cond);
     slotinfo->freeable=1;
     return 0;
 }
