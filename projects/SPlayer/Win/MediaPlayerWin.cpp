@@ -36,6 +36,7 @@ Copyright 2009 Georg Fritzsche,
 #include "AoDirect.h"
 #include "libxplayer.h"
 #include "af_format.h"
+#include "D3Drender.h"
 
 #include <dsound.h>
 
@@ -127,7 +128,7 @@ namespace
 			audio_uninit(context->pDataArray->aoconf, 0);
 		context->pDataArray->aoconf=NULL;
 		CloseHandle(context->hThreadArray[VO_THREAD]);
-		CloseHandle(context->hThreadArray[AO_THREAD]);
+	//	CloseHandle(context->hThreadArray[AO_THREAD]); 
 	}
 		
 		context->pDataArray->file=context->file;
@@ -141,6 +142,8 @@ namespace
 		context->pDataArray->stop=0;
 		context->pDataArray->filename=strdup(context->file.c_str());
         context->n++;
+
+        context->pDataArray->slot = context->slot;
 
 #if 0
 	context->hThreadArray[AO_THREAD] = CreateThread(
@@ -195,10 +198,11 @@ MediaPlayer::~MediaPlayer()
 {
     HRESULT hr;
 
+    stop();
+
     m_context->pDataArray->run = 0;
     m_context->pDataArray->mode = 0;
 
-    stop();
 }
 
 void MediaPlayer::StaticInitialize()
@@ -268,7 +272,7 @@ const std::string& MediaPlayer::lastError() const
 bool MediaPlayer::open(const std::string& url)
 {
     m_context->file = url;
-    activateVideo(m_context);
+    //activateVideo(m_context);
     xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_YV12);
@@ -277,6 +281,12 @@ bool MediaPlayer::open(const std::string& url)
 
     xplayer_API_loadurl(slotId, (char*)url.c_str());
 //    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
+
+    //temporal fix (we seem to have a race condition here)
+    //(fixes the problem where you need to load twice when changing the url)
+    Sleep(500); 
+     activateVideo(m_context);
+
     return false;
 }
 
@@ -323,7 +333,7 @@ bool MediaPlayer::stop()
 			audio_uninit(m_context->pDataArray->aoconf, 0);
 		m_context->pDataArray->aoconf=NULL;
 		CloseHandle(m_context->hThreadArray[VO_THREAD]);
-		CloseHandle(m_context->hThreadArray[AO_THREAD]);
+		//CloseHandle(m_context->hThreadArray[AO_THREAD]);
 	}
     m_context->pDataArray->mode = 0;
     return true;
@@ -742,8 +752,9 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 	HDC hdcMem;
 	BITMAP bitmap;
 	HBITMAP hBitmap;              
-					
-
+				
+    D3Drender d3dlocal; //needs to be local to thread
+       
 
     priv->run|=1;
     while(priv->run) {
@@ -762,7 +773,9 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 			winh = pos.bottom-pos.top;
 //			slog("Window size is %d, %d\n",winw, winh);
 		}
-		if(xplayer_API_isnewimage(priv->slot))
+        
+        //(note: might return -1 which is also true, but its not intended to be)
+		if(xplayer_API_isnewimage(priv->slot) > 0)
         {
 			xplayer_API_getimage(priv->slot, &img);
 			if(img && (w!=img->w || h!=img->h)) {
@@ -777,15 +790,24 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
                     img->planes[1] = img->planes[2];
                     img->planes[2] = tmp;
                 }
+             
  				if(hwnd && w && h) {
-					if(w && h) {
+					/*
+                    if(w && h) {
 						if ( owinw != winw || owinh != winh) {
 							slog("Resize required: new size is %d, %d\n",winw, winh);
 							xplayer_API_setimage(priv->slot, winw, winh, IMGFMT_BGR32);
 							owinw=winw;
 							owinh=winh;
 						}	
-					}
+					}//w&&h
+                    */
+
+                    //send texture to d3drender (if device is not ready, it returns without doing anything)
+                       d3dlocal.setBuffer(w,h, img->planes[0]);
+                    
+                    
+                    /*
 					slog("create bitmap ...\n");
 					hBitmap = CreateBitmap(w,h,1,32,img->planes[0]);
 					slog("hBitmap: %p\n",hBitmap);
@@ -796,15 +818,25 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 					ReleaseDC(hwnd, hdc);
 					DeleteDC(hdcMem);
 					DeleteObject(hBitmap);
-				}
+                    */
+				}//ifhwnd&&w&&h
+
                 if(img->imgfmt==IMGFMT_I420) {
 					unsigned char* tmp = img->planes[1];
                     img->planes[1] = img->planes[2];
                     img->planes[2] = tmp;
                 }
                 xplayer_API_imagedone(priv->slot);
-            }
-		}
+            }//if(img)
+		}//newimage
+        
+            //render direct3d even if a video is not running; (if no video loaded you just get a blank picture)
+            if (hwnd)
+            {
+                d3dlocal.init(hwnd); //note: safe to call every frame
+                d3dlocal.render(); //render image
+            }//endif
+
         ltime=etime;
         etime=xplayer_clock();
         Sleep(40);
@@ -813,7 +845,10 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
         {
             break;
         }
-    }
+    }//wend
+
+	d3dlocal.release(); //release directx9 context
+
 	slog("end of video process\n");
     xplayer_API_videoprocessdone(priv->slot);
     priv->run=0;
