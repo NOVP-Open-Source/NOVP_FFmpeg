@@ -32,7 +32,7 @@ Copyright 2009 Georg Fritzsche,
 #include "../MediaPlayer.h"
 #include "error_mapping.h"
 
-#include "VoDirectX.h"
+//#include "VoDirectX.h"
 #include "AoDirect.h"
 #include "libxplayer.h"
 #include "af_format.h"
@@ -41,130 +41,56 @@ Copyright 2009 Georg Fritzsche,
 #include <dsound.h>
 
 DWORD WINAPI AoThreadFunction( LPVOID lpParam );
-DWORD WINAPI VoThreadFunction( LPVOID lpParam );
+DWORD WINAPI VidThreadFunction(LPVOID lpParam);
 
 struct PlayerContext;
 
-typedef struct {
-    voconf_t* voconf;
-    aoconf_t* aoconf;
-    int run;
-    int mode;
-    int size;
-    int slot;
-    HWND hwnd;
-	FB::PluginWindow* win;
-    mp_image_t*	img;
-    std::string file;
-
-    char* filename;
-    int status;
-    int pause;
-    int stop;
-} MYDATA, *PMYDATA;
-
-#define VO_THREAD	0
-#define AO_THREAD	1
-#define MAX_THREADS	1
-
+//audio thread
 static HANDLE aTh[1];
 static DWORD aThId[1];
 static int aThRun = 0;
+
 
 struct PlayerContext 
 {
     int w;
     int h;
-	int n;
+    int n;
 
-    PMYDATA pDataArray;
-    DWORD   dwThreadIdArray[MAX_THREADS];
-	HANDLE  hThreadArray[MAX_THREADS];
+    DWORD threadId;
+    HANDLE hThread;
+    int run;
 	
     HWND hwnd;
-	FB::PluginWindow* win;
+    FB::PluginWindow* win;
 
-	int slot;
+    int slot;
     std::string error;
     std::string file;
 
-    PlayerContext() : pDataArray(0), hwnd(0), n(0) {}
+    PlayerContext() :  hwnd(0), n(0), win(0) {}
 };
 
-namespace 
+
+void startVidThread(PlayerContext * context)
 {
-    std::string vfwErrorString(const std::string& what, HRESULT hr)
-    {
-        std::ostringstream os;
-        os << what << ": " << mapVfwError(hr);
-        return os.str();
-    }
-
-    PlayerContextPtr make_context(HWND hwnd)
-    {
-        PlayerContextPtr context(new PlayerContext);
-        if(!context) throw MediaPlayer::InitializationException("failed to create context");
-
-        context->hwnd = hwnd;
+    if (context->run > 0) { return; } //already started the thread
+    
+    context->run = 1;
+    
+    context->hThread = CreateThread(NULL, 0, VidThreadFunction, context, 0, &(context->threadId) );
+        
+}//startvidthread
 
 
-        return context;
-    }
+void endVidThread(PlayerContext * context)
+{
+  if (context->run <= 0) { return; } //already closed threa
+  context->run = 0;
+  WaitForSingleObject(context->hThread, INFINITE);
+  
+}//endvidthread
 
-    bool activateVideo(PlayerContextPtr context)
-    {
-        if(!context->hwnd)
-            return true;
-
-	if(!context->pDataArray)
-	{
-		context->pDataArray = (PMYDATA) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MYDATA));
-	}
-
-	if(context->pDataArray->run) {
-		context->pDataArray->run = 0;
-		WaitForMultipleObjects(MAX_THREADS, context->hThreadArray, TRUE, 1000);
-		if(context->pDataArray->aoconf)
-			audio_uninit(context->pDataArray->aoconf, 0);
-		context->pDataArray->aoconf=NULL;
-		CloseHandle(context->hThreadArray[VO_THREAD]);
-	//	CloseHandle(context->hThreadArray[AO_THREAD]); 
-	}
-		
-		context->pDataArray->file=context->file;
-		context->pDataArray->voconf = NULL;
-		context->pDataArray->hwnd = context->hwnd;
-		context->pDataArray->win = context->win;
-        context->pDataArray->run = 1;
-        context->pDataArray->mode = 1;
-		context->pDataArray->status=0;
-		context->pDataArray->pause=0;
-		context->pDataArray->stop=0;
-		context->pDataArray->filename=strdup(context->file.c_str());
-        context->n++;
-
-        context->pDataArray->slot = context->slot;
-
-#if 0
-	context->hThreadArray[AO_THREAD] = CreateThread(
-            NULL,                       // default security attributes
-            0,                          // use default stack size  
-            AoThreadFunction,           // thread function name
-            context->pDataArray,        // argument to thread function 
-            0,                          // use default creation flags 
-            &context->dwThreadIdArray[AO_THREAD]); // returns the thread identifier 
-#endif
-	context->hThreadArray[VO_THREAD] = CreateThread(
-            NULL,                       // default security attributes
-            0,                          // use default stack size  
-            VoThreadFunction,          // thread function name
-            context->pDataArray,        // argument to thread function 
-            0,                          // use default creation flags 
-            &context->dwThreadIdArray[VO_THREAD]); // returns the thread identifier 
-
-	return true;
-    }
-};
 
 MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel, int debugflag, std::string logfile)
   : m_context()
@@ -180,30 +106,27 @@ MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel,
     xplayer_API_setlogfile(logfile.c_str());
     xplayer_API_setdebug(slotId, debugflag);
 
-    try
-    {
-        m_context = make_context(0);
-    }
-    catch(const InitializationException& e)
-    {
-        if(!m_context)
-            m_context = PlayerContextPtr(new PlayerContext);
-        m_context->error = e.what();
-        throw;
-    }
+    
+    m_context = PlayerContextPtr(new PlayerContext);
+    m_context->hwnd = 0;
     m_context->slot = slotId;
-}
+    
+    startVidThread(m_context.get());
+    
+    slog("ctor slot: %d \n", slotId);
+}//ctor
+
 
 MediaPlayer::~MediaPlayer()
 {
-    HRESULT hr;
 
     stop();
+    
+    endVidThread(m_context.get());
+  
+    slog("dtor slot:%d", slotId);
+}//dtor
 
-    m_context->pDataArray->run = 0;
-    m_context->pDataArray->mode = 0;
-
-}
 
 void MediaPlayer::StaticInitialize()
 {
@@ -225,9 +148,11 @@ void MediaPlayer::StaticDeinitialize()
 	CloseHandle(aTh[0]);
 }
 
+
+
 void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
 {
-    HRESULT hr;
+//    HRESULT hr;
     HWND hwnd = 0;
 
     if(pluginWindow) {
@@ -235,14 +160,9 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
         hwnd = wnd->getHWND();
     }
     
-    if(m_context->pDataArray) {
-        m_context->pDataArray->hwnd = hwnd;
-		m_context->pDataArray->win = pluginWindow;
-	    slog("set plugin window: %p\n",pluginWindow);
-    }
     
     m_context->hwnd = hwnd;
-	m_context->win = pluginWindow;
+    m_context->win = pluginWindow;
 
 	slog("set window: %p\n",hwnd);
 }
@@ -272,20 +192,10 @@ const std::string& MediaPlayer::lastError() const
 bool MediaPlayer::open(const std::string& url)
 {
     m_context->file = url;
-    //activateVideo(m_context);
+
     xplayer_API_setimage(slotId, 0, 0, IMGFMT_BGR32);
-//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
-//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_YV12);
-//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_I420);
     xplayer_API_sethwbuffersize(slotId, xplayer_API_prefilllen());
-
     xplayer_API_loadurl(slotId, (char*)url.c_str());
-//    xplayer_API_setimage(slotId, 0, 0, IMGFMT_RGB24);
-
-    //temporal fix (we seem to have a race condition here)
-    //(fixes the problem where you need to load twice when changing the url)
-    Sleep(500); 
-     activateVideo(m_context);
 
     return false;
 }
@@ -293,7 +203,6 @@ bool MediaPlayer::open(const std::string& url)
 
 bool MediaPlayer::play()
 {
-    activateVideo(m_context);
     xplayer_API_play(slotId);
     return true;
 }
@@ -324,18 +233,7 @@ bool MediaPlayer::pause()
 
 bool MediaPlayer::stop()
 {
-	xplayer_API_stop(slotId);
-	if(m_context->pDataArray && m_context->pDataArray->run) 
-	{
-		m_context->pDataArray->run = 0;
-		WaitForMultipleObjects(MAX_THREADS, m_context->hThreadArray, TRUE, 1000);
-		if(m_context->pDataArray->aoconf)
-			audio_uninit(m_context->pDataArray->aoconf, 0);
-		m_context->pDataArray->aoconf=NULL;
-		CloseHandle(m_context->hThreadArray[VO_THREAD]);
-		//CloseHandle(m_context->hThreadArray[AO_THREAD]);
-	}
-    m_context->pDataArray->mode = 0;
+    xplayer_API_stop(slotId);
     return true;
 }    
 
@@ -374,12 +272,12 @@ int MediaPlayer::getvolume()
 
 bool MediaPlayer::mute(bool mute)
 {
-    return xplayer_API_mute(slotId, mute);
+    return xplayer_API_mute(slotId, (mute ? 1 : 0) );
 }
 
 bool MediaPlayer::getmute()
 {
-    return xplayer_API_getmute(slotId);
+    return (xplayer_API_getmute(slotId) > 0);
 }
 
 bool MediaPlayer::close()
@@ -455,50 +353,6 @@ void MediaPlayer::settimeshift(double time)
     xplayer_API_settimeshift(slotId, time);
 }
 
-DWORD WINAPI MyThreadFunction( LPVOID lpParam )
-{
-    PMYDATA pDataArray;
-
-    pDataArray = (PMYDATA)lpParam;
-
-	int w = 0;
-	int h = 0;
-	int fmt = 0;
-
-    while(pDataArray->run) {
-		if(pDataArray->img) {
-			if(pDataArray->img->w!=w || pDataArray->img->h!=h || pDataArray->img->imgfmt!=fmt) {
-				w=pDataArray->img->w;
-				h=pDataArray->img->h;
-				fmt=pDataArray->img->imgfmt;
-				vo_config(pDataArray->voconf, w,h,w,h,0,NULL,fmt);
-			}
-	        vo_draw_frame(pDataArray->voconf, pDataArray->img->planes);
-		    vo_flip_page(pDataArray->voconf);
-		}
-        Sleep(40);
-    }
-
-	vo_uninit(pDataArray->voconf);
-    return 0; 
-}
-
-extern "C" {
-	mp_image_t* win_draw(mp_image_t* img, mp_image_t* src)
-	{
-		mp_image_t* ret = img;
-
-		if(!img || img->w!=src->w || img->h!=src->h || img->imgfmt!=src->imgfmt)
-		{
-            ret=alloc_mpi(src->w, src->h, src->imgfmt);
-			if(img)
-				free_mp_image(img);
-		}
-        copy_mpi(ret, src);
-
-		return ret;
-	};
-};
 
 static char * dserr2str(int err)
 {
@@ -529,7 +383,7 @@ static char * dserr2str(int err)
 DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 {
 	char abuffer[0x10000];
-	aoconf_t* aoconf;
+//	aoconf_t* aoconf;
 	int rate = xplayer_API_getaudio_rate();
 	int channels = xplayer_API_getaudio_channels();
 	int len;
@@ -723,14 +577,14 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 
 	slog("audio thread end\n");
     return NULL;
-}
+}//aothreadfunction
 
-#if 1
 
-DWORD WINAPI VoThreadFunction( LPVOID lpParam )
+DWORD WINAPI VidThreadFunction(LPVOID lpParam)
 {
-    PMYDATA priv;
-    priv = (PMYDATA)lpParam;
+
+    PlayerContext * priv;
+    priv = (PlayerContext *) lpParam;
 
     mp_image_t* img = NULL;
     mp_image_t* frame = NULL;
@@ -746,26 +600,27 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
     double etime=0.0;
     double ltime=0.0;
     HWND hwnd = 0;
-	HDC hdc;
-	PAINTSTRUCT ps;
-	HGDIOBJ oldBitMap;
-	HDC hdcMem;
-	BITMAP bitmap;
-	HBITMAP hBitmap;              
+             
 				
     D3Drender d3dlocal; //needs to be local to thread
        
+    slog("vidthread start :: priv  %p \n", priv);
+    slog("priv hwnd  %d \n", priv->hwnd);
+    slog("priv slot %d \n", priv->slot);
 
-    priv->run|=1;
-    while(priv->run) {
+    while (priv->run > 0)
+    {
+  
 		if(hwnd != priv->hwnd) {
 			hwnd=0;
 			w=h=fmt=0;
 		}
+   
 		if(priv->hwnd && !hwnd) {
 			hwnd = priv->hwnd;
 			slog("hwnd: %p\n",hwnd);
 		}	
+ 
 		if (priv->win)
 		{
 			FB::Rect pos = priv->win->getWindowPosition();
@@ -773,7 +628,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
 			winh = pos.bottom-pos.top;
 //			slog("Window size is %d, %d\n",winw, winh);
 		}
-        
+
         //(note: might return -1 which is also true, but its not intended to be)
 		if(xplayer_API_isnewimage(priv->slot) > 0)
         {
@@ -792,33 +647,8 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
                 }
              
  				if(hwnd && w && h) {
-					/*
-                    if(w && h) {
-						if ( owinw != winw || owinh != winh) {
-							slog("Resize required: new size is %d, %d\n",winw, winh);
-							xplayer_API_setimage(priv->slot, winw, winh, IMGFMT_BGR32);
-							owinw=winw;
-							owinh=winh;
-						}	
-					}//w&&h
-                    */
-
                     //send texture to d3drender (if device is not ready, it returns without doing anything)
                        d3dlocal.setBuffer(w,h, img->planes[0]);
-                    
-                    
-                    /*
-					slog("create bitmap ...\n");
-					hBitmap = CreateBitmap(w,h,1,32,img->planes[0]);
-					slog("hBitmap: %p\n",hBitmap);
-					hdcMem = CreateCompatibleDC(NULL);
-					SelectObject(hdcMem, hBitmap);				
-					hdc = GetDC(hwnd);
-					BitBlt(hdc, 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
-					ReleaseDC(hwnd, hdc);
-					DeleteDC(hdcMem);
-					DeleteObject(hBitmap);
-                    */
 				}//ifhwnd&&w&&h
 
                 if(img->imgfmt==IMGFMT_I420) {
@@ -829,7 +659,7 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
                 xplayer_API_imagedone(priv->slot);
             }//if(img)
 		}//newimage
-        
+
             //render direct3d even if a video is not running; (if no video loaded you just get a blank picture)
             if (hwnd)
             {
@@ -841,104 +671,18 @@ DWORD WINAPI VoThreadFunction( LPVOID lpParam )
         etime=xplayer_clock();
         Sleep(40);
         stime=xplayer_clock();
-        if((priv->run & 2) && !(xplayer_API_getstatus(priv->slot)&STATUS_PLAYER_OPENED))
-        {
-            break;
-        }
+       // if((priv->run & 2) && !(xplayer_API_getstatus(priv->slot)&STATUS_PLAYER_OPENED))
+        //{
+        //    break;
+       // }
     }//wend
 
-	d3dlocal.release(); //release directx9 context
+    d3dlocal.release(); //release directx9 context
 
-	slog("end of video process\n");
+    slog("end of video process (2) \n");
     xplayer_API_videoprocessdone(priv->slot);
     priv->run=0;
 	return NULL;
-}
-
-#else
-
-DWORD WINAPI VoThreadFunction( LPVOID lpParam )
-{
-    PMYDATA priv;
-    priv = (PMYDATA)lpParam;
-
-    mp_image_t* img = NULL;
-    mp_image_t* frame = NULL;
-    int w=0;
-    int h=0;
-    int fmt=0;
-    int winw = 640;
-    int winh = 480;
-
-    double stime=0.0;
-    double etime=0.0;
-    double ltime=0.0;
-    HWND hwnd = 0;
-	HDC hdc;
-                                     
-    priv->run|=1;
-
-    while(priv->run) {
-		if(hwnd != priv->hwnd) {
-			hwnd=0;
-			if(priv->voconf)
-				vo_uninit(priv->voconf);
-			priv->voconf=NULL;
-		}
-		if(priv->hwnd) {
-			hwnd = priv->hwnd;
-		}	
-		if(!priv->voconf && hwnd) {
-			priv->voconf = preinit(1,hwnd);
-			w=h=fmt=0;
-			slog("voconf: %p hwnd: %p\n",priv->voconf,hwnd);
-		}
-        if(xplayer_API_isnewimage(priv->slot))
-        {
-			xplayer_API_getimage(priv->slot, &img);
-			if(img && (w!=img->w || h!=img->h) && priv->voconf) {
-                w=img->w;
-                h=img->h;
-				fmt=img->imgfmt;
-				slog("video config: w: %d, h: %d, fmt: 0x%x\n",w,h,fmt);
-				vo_config(priv->voconf, w,h,w,h,0,NULL,fmt);
-            }
-            if(img) {
-                if(img->imgfmt==IMGFMT_I420) {
-					unsigned char* tmp = img->planes[1];
-                    img->planes[1] = img->planes[2];
-                    img->planes[2] = tmp;
-                }
- 				if(hwnd && priv->voconf) {
-					vo_draw_frame(priv->voconf, img->planes);
-					vo_flip_page(priv->voconf);
-				}
-                if(img->imgfmt==IMGFMT_I420) {
-					unsigned char* tmp = img->planes[1];
-                    img->planes[1] = img->planes[2];
-                    img->planes[2] = tmp;
-                }
-                xplayer_API_imagedone(priv->slot);
-            }
-		}
-        ltime=etime;
-        etime=xplayer_clock();
-        Sleep(40);
-        stime=xplayer_clock();
-        if((priv->run & 2) && !(xplayer_API_getstatus(priv->slot)&STATUS_PLAYER_OPENED))
-        {
-            break;
-        }
-    }
-	slog("end of video process\n");
-	if(hwnd && priv->voconf) {
-		vo_uninit(priv->voconf);
-	}
-    xplayer_API_videoprocessdone(priv->slot);
-    priv->run=0;
-	return NULL;
-}
-#endif
-
+}//vidthread
 
 
