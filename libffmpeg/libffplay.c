@@ -482,13 +482,15 @@ static slotinfo_t* get_slot_info(int slot, int alloc, int lock) {
     slotinfo_t* slotinfo;
 
     master_init(1);
-    if(lock)
+    if(lock) {
         pthread_mutex_lock(&xplayer_global_status->mutex);
+    }
     if(slot>=0 && slot<SLOT_MAX_CACHE) {
         slotinfo = xplayer_global_status->slotinfo_chache[slot];
         if(slotinfo) {
-            if(lock)
+            if(lock) {
                 pthread_mutex_unlock(&xplayer_global_status->mutex);
+            }
             return slotinfo;
         }
     }
@@ -503,8 +505,9 @@ static slotinfo_t* get_slot_info(int slot, int alloc, int lock) {
     if(!slotinfo && alloc) {
         slotinfo=init_slotinfo(slot);
     }
-    if(lock)
+    if(lock) {
         pthread_mutex_unlock(&xplayer_global_status->mutex);
+    }
     return slotinfo;
 }
 
@@ -880,8 +883,9 @@ static void add_freeable_vdaframe(slotinfo_t* slotinfo, void* vdaframe, int nolo
     int i;
 #endif
 
-    if(!nolock)
+    if(!nolock) {
         pthread_mutex_lock(&slotinfo->mutex);
+    }
 #ifdef USE_LOCKIMAGE
     if(vdaframe) {
         if(slotinfo->lockvdaframe!=vdaframe) {
@@ -908,8 +912,9 @@ static void add_freeable_vdaframe(slotinfo_t* slotinfo, void* vdaframe, int nolo
         slotinfo->freeable_vdaframe[empty]=vdaframe;
     }
 #endif
-    if(!nolock)
+    if(!nolock) {
         pthread_mutex_unlock(&slotinfo->mutex);
+    }
 }
 
 void xplayer_API_init(int log_level, const char* logfile) {
@@ -3287,6 +3292,7 @@ static void stream_close(VideoState *is)
         fclose(is->fhwav2);
     }
 #endif
+    pthread_mutex_destroy(&is->audio_decode_buffer_mutex);
     av_free(is);
     slotinfo->audiolock=0;
     pthread_mutex_unlock(&slotinfo->audiomutex);
@@ -5765,7 +5771,6 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
     }
     pthread_mutex_unlock(&is->audio_decode_buffer_mutex);
 
-
     is->audio_write_buf_size = speedlen;
     /* Let's assume the audio driver that is used by SDL has two periods. */
     if((is->slotinfo->debugflag & DEBUGFLAG_AV)) {
@@ -6272,7 +6277,6 @@ static int stream_component_open(VideoState *is, int stream_index)
 
         memset(&is->audio_pkt, 0, sizeof(is->audio_pkt));
         packet_queue_init(is, &is->audioq);
-        pthread_mutex_init(&is->audio_decode_buffer_mutex, NULL);
         break;
     case AVMEDIA_TYPE_VIDEO:
         is->video_stream = stream_index;
@@ -6316,7 +6320,6 @@ static void stream_component_close(VideoState *is, int stream_index)
         is->slotinfo->audiolock=1;
         pthread_mutex_unlock(&is->slotinfo->audiomutex);
         audio_decode_flush(is);
-        pthread_mutex_destroy(&is->audio_decode_buffer_mutex);
         if (is->swr_ctx)
             swr_free(&is->swr_ctx);
         av_free_packet(&is->audio_pkt);
@@ -7123,6 +7126,7 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
     is->xleft = 0;
 
 //    is->sws_opts = sws_getContext(16, 16, 0, 16, 16, 0, SWS_BICUBIC, NULL, NULL, NULL);
+    pthread_mutex_init(&is->audio_decode_buffer_mutex, NULL);
 
     pthread_mutex_init(&is->event_mutex, NULL);
     /* start video display */
@@ -7154,6 +7158,7 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
             fclose(is->fhwav2);
         }
 #endif
+        pthread_mutex_destroy(&is->audio_decode_buffer_mutex);
         av_free(is);
         return NULL;
     }
