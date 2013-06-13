@@ -98,7 +98,6 @@ struct slotinfo_st {
     int                 pauseafterload;
     int                 pausereq;
     int                 pauseseekreq;
-	int                 buffering;
 
     int                 w;
     int                 h;
@@ -186,6 +185,8 @@ struct slotinfo_st {
     char                statusline[STATUSLINE_SIZE];
 
     int                 callplayerstatus;
+	int                 buffering;
+	
 
 };
 
