@@ -69,7 +69,7 @@
 #endif
 
 #if defined(__APPLE__)
-#include "../ffmpeg/libavcodec/vda.h"
+#include "../FFmpeg/libavcodec/vda.h"
 static int vdaframeno = 0;
 static unsigned int vdaframes_pop = 0;
 static unsigned int vdaframes_release = 0;
