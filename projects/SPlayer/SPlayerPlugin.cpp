@@ -176,12 +176,12 @@ bool SPlayerPlugin::onWindowDetached(FB::DetachedEvent* evt, FB::PluginWindow* w
     return true;
 }
 
+#ifdef FB_WIN
 bool SPlayerPlugin::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindowWin* win)
 {
-    #ifdef FB_WIN
       if(m_player)
       { return m_player->onWindowsEvent(evt, (FB::PluginWindow*)(win) ); }
-    #endif
-
+    
     return false;
 }
+#endif

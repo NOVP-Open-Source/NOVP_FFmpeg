@@ -17,9 +17,13 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 
 #include "PluginEvents/MouseEvents.h"
 #include "PluginEvents/AttachedEvent.h"
-#include "PluginEvents/WindowsEvent.h"
 #include "PluginWindow.h"
+
+#ifdef FB_WIN
 #include "PluginWindowWin.h"
+#include "PluginEvents/WindowsEvent.h"
+#endif
+
 //#include "Timer.h"
 
 #include "PluginCore.h"
@@ -48,7 +52,9 @@ public:
 //        EVENTTYPE_CASE(FB::MouseMoveEvent, onMouseMove, FB::PluginWindow)
         EVENTTYPE_CASE(FB::AttachedEvent, onWindowAttached, FB::PluginWindow)
         EVENTTYPE_CASE(FB::DetachedEvent, onWindowDetached, FB::PluginWindow)
+#ifdef FB_WIN
         EVENTTYPE_CASE(FB::WindowsEvent, onWindowsEvent,FB::PluginWindowWin)
+#endif
     END_PLUGIN_EVENT_MAP()
 
     virtual bool onMouseDown(FB::MouseDownEvent *evt, FB::PluginWindow*);
@@ -57,8 +63,10 @@ public:
     virtual bool onWindowAttached(FB::AttachedEvent* evt, FB::PluginWindow*);
     virtual bool onWindowDetached(FB::DetachedEvent* evt, FB::PluginWindow*);
 
+#ifdef FB_WIN
     virtual bool onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindowWin*);
-
+#endif
+    
     void timerCallback(void);
 
 private:

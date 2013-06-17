@@ -19,7 +19,10 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 #include "JSObject.h"
 #include "PluginEvents/MouseEvents.h"
 #include "PluginEvents/AttachedEvent.h"
+
+#ifdef FB_WIN
 #include "PluginEvents/WindowsEvent.h"
+#endif
 
 namespace FB { class PluginWindow; };
 class MediaPlayer;
