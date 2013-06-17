@@ -259,6 +259,9 @@ fprintf(stderr,"XXXXXXXXX setWindow done: %d\n",slotId);
 #endif
 }
 
+bool MediaPlayer::onMouseDown(FB::MouseDownEvent * evt)
+{ return false; }
+
 bool MediaPlayer::setloglevel(int logLevel)
 {
     xplayer_API_setloglevel(slotId, logLevel);

@@ -17,6 +17,9 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 #include "JSAPIAuto.h"
 #include "BrowserHost.h"
 #include "JSObject.h"
+#include "PluginEvents/MouseEvents.h"
+#include "PluginEvents/AttachedEvent.h"
+#include "PluginEvents/WindowsEvent.h"
 
 namespace FB { class PluginWindow; };
 class MediaPlayer;
@@ -127,9 +130,13 @@ public:
     bool GetMute();                                             /// get mute flag
     bool SetResetPropertiesOnReload(const FB::variant&);        /// reset plugin setting when load new movie (bool)
     bool GetResetPropertiesOnReload();                          /// get reset plugin settings flag
-#if 0
-    bool onMouseDown();
-#endif
+
+
+    //about box/context menu related
+    bool onMouseDown(FB::MouseDownEvent * evt);
+    #ifdef FB_WIN
+        bool onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow* win);
+    #endif
 
 private:
     typedef boost::shared_ptr<MediaPlayer> MediaPlayerPtr;

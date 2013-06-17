@@ -38,6 +38,8 @@ Copyright 2009 Georg Fritzsche,
 #include "af_format.h"
 #include "D3Drender.h"
 
+#include "aboutBox.h"
+
 #include <dsound.h>
 
 DWORD WINAPI AoThreadFunction( LPVOID lpParam );
@@ -152,7 +154,6 @@ void MediaPlayer::StaticDeinitialize()
 
 void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
 {
-//    HRESULT hr;
     HWND hwnd = 0;
 
     if(pluginWindow) {
@@ -166,6 +167,61 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
 
 	slog("set window: %p\n",hwnd);
 }
+
+
+static void openAboutPopup(HWND hwnd)
+{
+     HMENU hPopupMenu = CreatePopupMenu();
+     POINT cp = {0};
+
+        GetCursorPos( &cp );
+
+            InsertMenu(hPopupMenu, 0, MF_BYPOSITION | MF_STRING, 2, L"About");
+            InsertMenu(hPopupMenu, 0, MF_BYPOSITION | MF_STRING, 3, L"---------------------");
+            InsertMenu(hPopupMenu, 0, MF_BYPOSITION | MF_STRING, 1, L"Learningspace SPlayer");
+
+            TrackPopupMenu(hPopupMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, cp.x, cp.y, 0, hwnd, NULL);
+        //note: trackpopupmenu takes care of deleting the popupmenu after its no longer needed
+        //(if its assigned to a window that is)
+
+}//openabout
+
+
+bool MediaPlayer::onMouseDown(FB::MouseDownEvent * evt)
+{
+    if (m_context->hwnd == 0) { return false; }
+
+    if (evt->m_Btn ==  FB::MouseDownEvent::MouseButton_Right)
+    { 
+        openAboutPopup(m_context->hwnd); 
+
+        return true;
+    }//endif
+
+    return false;
+}//onmousedown
+
+
+bool MediaPlayer::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow * win)
+{
+
+    if (m_context->hwnd == 0) { return false; }
+    
+    //windows even handling is needed for  WM_COMMAND (that is how the popup menu sends commands)
+
+    if (evt->uMsg == WM_COMMAND && LOWORD(evt->wParam) == 2)
+    {
+        //MessageBox(m_context->hwnd, L"Made by CAE", L"About", MB_OK);
+
+        showCaeAboutBox(m_context->hwnd);
+
+        return true;
+    }//endif
+
+
+    return false;
+}//onwinevent
+
 
 bool MediaPlayer::setloglevel(int logLevel)
 {

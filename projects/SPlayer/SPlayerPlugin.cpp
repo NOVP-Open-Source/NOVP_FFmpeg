@@ -137,10 +137,17 @@ FB::JSAPIPtr SPlayerPlugin::createJSAPI()
 
 bool SPlayerPlugin::onMouseDown(FB::MouseDownEvent *evt, FB::PluginWindow*)
 {
+    if (m_player)
+    {
+        return m_player->onMouseDown(evt);
+    }
+
+    /*
 #if 0
     if(m_player)
         return m_player->onMouseDown();
 #endif
+        */
     return false;
 }
 
@@ -169,3 +176,12 @@ bool SPlayerPlugin::onWindowDetached(FB::DetachedEvent* evt, FB::PluginWindow* w
     return true;
 }
 
+bool SPlayerPlugin::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindowWin* win)
+{
+    #ifdef FB_WIN
+      if(m_player)
+      { return m_player->onWindowsEvent(evt, (FB::PluginWindow*)(win) ); }
+    #endif
+
+    return false;
+}

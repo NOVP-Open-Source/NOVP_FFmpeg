@@ -19,6 +19,7 @@ file (GLOB PLATFORM RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     Win/*.cpp
     Win/*.h
     Win/*.cmake
+    Win/*.rc
     )
 
 add_definitions(

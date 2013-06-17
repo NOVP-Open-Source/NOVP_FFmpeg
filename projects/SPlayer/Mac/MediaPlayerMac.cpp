@@ -109,6 +109,9 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
     m_context->hwnd = cref;
 }
 
+bool MediaPlayer::onMouseDown(FB::MouseDownEvent * evt)
+{ return false; }
+
 bool MediaPlayer::setloglevel(int logLevel)
 {
     xplayer_API_setloglevel(slotId, logLevel);

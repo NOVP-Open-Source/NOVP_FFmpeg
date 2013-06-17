@@ -17,7 +17,9 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 
 #include "PluginEvents/MouseEvents.h"
 #include "PluginEvents/AttachedEvent.h"
+#include "PluginEvents/WindowsEvent.h"
 #include "PluginWindow.h"
+#include "PluginWindowWin.h"
 //#include "Timer.h"
 
 #include "PluginCore.h"
@@ -41,11 +43,12 @@ public:
     virtual bool isWindowless() { return false; }
 
     BEGIN_PLUGIN_EVENT_MAP()
-//        EVENTTYPE_CASE(FB::MouseDownEvent, onMouseDown, FB::PluginWindow)
+        EVENTTYPE_CASE(FB::MouseDownEvent, onMouseDown, FB::PluginWindow)
 //        EVENTTYPE_CASE(FB::MouseUpEvent, onMouseUp, FB::PluginWindow)
 //        EVENTTYPE_CASE(FB::MouseMoveEvent, onMouseMove, FB::PluginWindow)
         EVENTTYPE_CASE(FB::AttachedEvent, onWindowAttached, FB::PluginWindow)
         EVENTTYPE_CASE(FB::DetachedEvent, onWindowDetached, FB::PluginWindow)
+        EVENTTYPE_CASE(FB::WindowsEvent, onWindowsEvent,FB::PluginWindowWin)
     END_PLUGIN_EVENT_MAP()
 
     virtual bool onMouseDown(FB::MouseDownEvent *evt, FB::PluginWindow*);
@@ -53,6 +56,8 @@ public:
     virtual bool onMouseMove(FB::MouseMoveEvent *evt, FB::PluginWindow*);
     virtual bool onWindowAttached(FB::AttachedEvent* evt, FB::PluginWindow*);
     virtual bool onWindowDetached(FB::DetachedEvent* evt, FB::PluginWindow*);
+
+    virtual bool onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindowWin*);
 
     void timerCallback(void);
 

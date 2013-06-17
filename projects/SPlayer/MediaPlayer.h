@@ -19,6 +19,13 @@ Copyright 2009 Georg Fritzsche,
 #include <boost/shared_ptr.hpp>
 #include <stdexcept>
 #include <string>
+#include "PluginEvents/MouseEvents.h"
+#include "PluginEvents/AttachedEvent.h"
+
+#ifdef FB_WIN
+#include "PluginEvents/WindowsEvent.h"
+#endif
+
 #include "libxplayer.h"
 
 namespace FB { class PluginWindow; };
@@ -77,6 +84,11 @@ public:
     void settimeshift(double time);
 
     void setWindow(FB::PluginWindow*);
+    bool onMouseDown(FB::MouseDownEvent * evt);
+
+    #ifdef FB_WIN
+        bool onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow* win);
+    #endif
 
     int playerId;
     int slotId;

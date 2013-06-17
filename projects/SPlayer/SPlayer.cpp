@@ -764,15 +764,25 @@ void SPlayer::EventProcess()
     FireEvent("onTestEvent", FB::variant_list_of(m_href));
 }
 
-#if 0
-bool SPlayer::onMouseDown()
+
+bool SPlayer::onMouseDown(FB::MouseDownEvent * evt)
 {
+    return m_player->onMouseDown( evt);
+
+    /*
     if(!m_href.empty())
     {
         fprintf(stderr,"Navigate: %s\n",m_href.c_str());
         m_host->Navigate(m_href, "");
         return true;
-    }
+    }*/
     return false;
+}
+
+
+#ifdef FB_WIN
+bool SPlayer::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow* win)
+{
+    return m_player->onWindowsEvent(evt, win);
 }
 #endif
