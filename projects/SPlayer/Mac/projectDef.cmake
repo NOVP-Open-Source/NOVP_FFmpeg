@@ -24,6 +24,7 @@ SOURCE_GROUP(Mac FILES ${PLATFORM})
 
 file (GLOB RESOURCES
     Resources/[^.]*.png
+    Resources/[^.]*.tiff
 )
  
 set_source_files_properties(

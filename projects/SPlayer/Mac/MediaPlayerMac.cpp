@@ -29,6 +29,9 @@
 #include <AudioToolbox/AudioFile.h>
 #include <AudioToolbox/AudioFormat.h>
 
+#include "aboutBoxMac.h"
+
+
 struct PlayerContext 
 {
     int w;
@@ -109,8 +112,35 @@ void MediaPlayer::setWindow(FB::PluginWindow* pluginWindow)
     m_context->hwnd = cref;
 }
 
+
+
+
+
+
 bool MediaPlayer::onMouseDown(FB::MouseDownEvent * evt)
-{ return false; }
+{
+    if (m_context->wnd == 0) {return false;}
+    
+    if (evt->m_Btn == FB::MouseDownEvent::MouseButton_Right
+        //|| evt->m_Btn == FB::MouseDownEvent::MouseButton_Left
+           
+        )
+    {
+        
+        
+        createMenu();
+        
+    
+        return true;
+    }//endif
+    
+    return false;
+}//onmousedown
+
+
+
+
+
 
 bool MediaPlayer::setloglevel(int logLevel)
 {
