@@ -40,6 +40,8 @@ Copyright 2009 Georg Fritzsche,
 
 #include "aboutBox.h"
 
+#include "winres.h"
+
 #include <dsound.h>
 
 DWORD WINAPI AoThreadFunction( LPVOID lpParam );
@@ -636,6 +638,46 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 }//aothreadfunction
 
 
+
+
+//based on
+//http://stackoverflow.com/questions/9296059/read-pixel-value-in-bmp-file
+
+//load a 24bpp .bmp file into memory
+//remember to free it when you no longer need it
+static char * readBmp(char * memfile, int * width, int * height)
+{
+ int w;
+ int h;
+ int i;
+ int k;
+ int pad;
+ char * data;
+
+ w = *(int*)&memfile[18];
+ h = *(int*)&memfile[22];
+
+ *width = w;
+ *height = h;
+ 
+ data = new char[w*h*3];
+
+ pad = (w*3 + 3) & (~3);
+ 
+ k = 54;
+ 
+ //copy image (and mirror vertically)
+  for(i = 0; i < h; i++)
+  {
+    memcpy(&(data[(h-i-1)*w*3]), &(memfile[k]), w*3);
+    k += pad;
+  }//nexti
+
+ return data;
+}//readbmp 
+
+
+
 DWORD WINAPI VidThreadFunction(LPVOID lpParam)
 {
 
@@ -675,6 +717,53 @@ DWORD WINAPI VidThreadFunction(LPVOID lpParam)
 		if(priv->hwnd && !hwnd) {
 			hwnd = priv->hwnd;
 			slog("hwnd: %p\n",hwnd);
+
+                //set image to cae backdrop
+
+                      HMODULE hModule; 
+                      HGLOBAL hMem;
+                      HRSRC hRsrc;
+                      GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, L"npSPlayer.dll", &hModule); 
+                      hRsrc = FindResource(hModule, MAKEINTRESOURCE(IDB_BITMAPCAEBG), RT_RCDATA);
+                      hMem = LoadResource(hModule, hRsrc); 
+
+
+                      char * filemem = (char*) LockResource(hMem); //don't free, only need to do that on 16bit windows
+  
+                      char * data;
+                      char * raw;
+                      int i, g, m, w, h, num;
+  
+                      raw = readBmp(filemem, &w, &h);
+
+                      num = w * h;
+                      data = new char[num*4]; //allocate for 32bpp
+  
+                        //convert loaded image to 32bit
+
+                          for (i = 0; i < num; i++)
+                          {
+                            g = i * 3;
+                            m = i * 4;
+        
+                            data[m] = raw[g];
+                            data[m+1] = raw[g+1];
+                            data[m+2] = raw[g+2];
+                            data[m+3] = -127; //0xFF
+      
+                          }//nexti
+
+    
+                        //load texture in direct3d9
+    
+                         d3dlocal.init(hwnd);
+                         d3dlocal.setBuffer(w,h, (unsigned char *) data);
+ 
+                        //free memory
+                          delete [] raw;
+                          delete [] data;
+
+
 		}	
  
 		if (priv->win)
