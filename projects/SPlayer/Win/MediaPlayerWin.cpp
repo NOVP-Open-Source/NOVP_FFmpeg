@@ -220,6 +220,9 @@ bool MediaPlayer::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow * win)
         return true;
     }//endif
 
+    if (evt->uMsg == WM_ERASEBKGND)
+    { return true; }
+
 
     return false;
 }//onwinevent
