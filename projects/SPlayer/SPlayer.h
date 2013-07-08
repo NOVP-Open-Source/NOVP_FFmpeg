@@ -149,6 +149,7 @@ private:
     int m_loglevel;
     std::string m_logfile;
     std::string m_url;
+    bool m_url_valid;
     bool m_autoplay;
     bool m_resetprop;
     bool m_inited;

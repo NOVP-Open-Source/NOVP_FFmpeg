@@ -29,6 +29,7 @@ SPlayer::SPlayer(FB::BrowserHostPtr host, int pluginId, int sId, int loglevel, i
   , m_loglevel(0)
   , m_logfile(logfile)
   , m_url("")
+  , m_url_valid(false)
   , m_autoplay(false)
   , m_resetprop(false)
   , m_inited(false)
@@ -472,6 +473,7 @@ bool SPlayer::SetURL(const std::string& entry)
     if(!entry.length())
         return false;
     m_url = entry;
+    m_url_valid = true;
     m_player->open(entry);
     if(m_autoplay)
         m_player->play();
@@ -481,6 +483,8 @@ bool SPlayer::SetURL(const std::string& entry)
 std::string SPlayer::GetURL()
 {
     plugincall(slotId, 31);
+    if(!m_url_valid)
+        return m_qtsrc;
     return m_url;
 }
 
