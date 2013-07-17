@@ -1,3 +1,6 @@
+#ifndef int64_t
+typedef signed long long int 	int64_t;
+#endif
 
 #ifndef __LIBFFPLAY_H__
 #define __LIBFFPLAY_H__
@@ -186,7 +189,9 @@ struct slotinfo_st {
 
     int                 callplayerstatus;
 	int                 buffering;
-	
+	int                 tbden;
+    int64_t             pts;
+    double              start_pts;
 
 };
 

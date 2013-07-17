@@ -30,6 +30,7 @@
 #define USE_AUDIOCORR_ZERO 0
 #define USE_AUDIOCORR_INETRNPOL 0
 //#define DEBUG_AUDIOCORR 1
+#define FORCE_ACCURACY 1
 
 #define USES_PAUSESEEK 1
 
@@ -648,9 +649,11 @@ static void *audio_process(void *data) {
     FILE* fh = NULL;
 #endif
 
+#ifdef USE_DEBUG_LIB
     double stime = 0.0;
     double etime = 0.0;
     double ltime = 0.0;
+#endif
 
     xplayer_global_status->run=1;
     systime=xplayer_clock();
@@ -795,7 +798,9 @@ static void *audio_process(void *data) {
                 usleep(ml);
             else
                 usleep(100);
+#ifdef USE_DEBUG_LIB
             stime=xplayer_clock();
+#endif
         }
         if(!xplayer_global_status->run)
         {
@@ -923,6 +928,25 @@ void xplayer_API_init(int log_level, const char* logfile) {
     loglevel = envloglevel(loglevel);
     av_log_set_level(loglevel);
     master_init(3);
+}
+
+int64_t xplayer_API_getcurrentframe(int slot) {
+    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
+
+    int64_t currentframe;
+    double tmp;
+
+    apicall(slot, 8);
+    pthread_mutex_lock(&slotinfo->mutex);
+    tmp = (double)slotinfo->fps;
+    tmp/= (double)slotinfo->tbden;
+    tmp*= (double)(slotinfo->pts - slotinfo->start_pts);
+    currentframe = (int64_t)tmp;
+
+    pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
+    return currentframe;
+
 }
 
 void xplayer_API_done() {
@@ -1825,8 +1849,6 @@ int xplayer_API_getstatus(int slot) {
 }
 
 int xplayer_API_seekfinished(int slot) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-
     return triggermeh == 0;
 }
 
@@ -3391,9 +3413,11 @@ static void video_display(VideoState *is)
 
 static void* refresh_thread(void *opaque)
 {
+#ifdef USE_DEBUG_LIB
     double stime = 0.0;
     double etime = 0.0;
     double ltime = 0.0;
+#endif
 
 #ifdef THREAD_DEBUG
     av_log(NULL, AV_LOG_DEBUG,"[debug] refresh_thread(): pthread_create: refresh_thread 0x%x \n",(unsigned int)pthread_self());
@@ -3408,15 +3432,18 @@ static void* refresh_thread(void *opaque)
             push_event(is->slotinfo->eventqueue, &event);
         }
         //FIXME ideally we should wait the correct time but SDLs event passing is so slow it would be silly
+#ifdef USE_DEBUG_LIB
         ltime=etime;
         etime=xplayer_clock();
-#ifdef USE_DEBUG_LIB
+
         if(etime>0.0 && stime>0.0) {
             threadtime(is->slotinfo->slotid, REFRESH_THREAD_ID, etime-stime, etime-ltime);
         }
 #endif
         usleep(is->audio_st && is->show_mode != SHOW_MODE_VIDEO ? is->slotinfo->rdftspeed*1000 : 5000);
+#ifdef USE_DEBUG_LIB
         stime=xplayer_clock();
+#endif
     }
     return NULL;
 }
@@ -3485,6 +3512,7 @@ static VideoState* get_group_master(VideoState *is, int lock)
     return is;
 }
 
+#if 0
 static double get_group_clock(VideoState *is)
 {
     int masterid;
@@ -3500,6 +3528,7 @@ static double get_group_clock(VideoState *is)
     }
     return get_master_clock(is);
 }
+#endif
 
 /* seek in the stream */
 static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_bytes)
@@ -4100,7 +4129,6 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
     VideoPicture *vp;
     double frame_delay, pts = pts1;
     double st,et;
-    int h;
 
     /* compute the exact PTS for the picture if it is omitted in the stream
      * pts1 is the dts of the pkt / pts of the frame */
@@ -4293,12 +4321,12 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
 #endif
         {
             if(vp->tempimg) {
-                h=sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
                           0, vp->oheight, tpict.data, tpict.linesize);
-                h=sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
+                sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
                           0, vp->oheight, pict.data, pict.linesize);
             } else {
-                h=sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
                           0, vp->height, pict.data, pict.linesize);
             }
         }
@@ -4692,9 +4720,11 @@ static int configure_video_filters(AVFilterGraph *graph, VideoState *is, const c
 
 static void* video_thread(void *arg)
 {
-    double stime = 0.0;
+#ifdef USE_DEBUG_LIB
     double etime = 0.0;
     double ltime = 0.0;
+    double stime = 0.0;
+#endif
     double wtime = 0.0;
     double st,et;
 
@@ -4722,16 +4752,16 @@ static void* video_thread(void *arg)
 
     for(;;) {
 
+#ifdef USE_DEBUG_LIB
         ltime=etime;
         etime=xplayer_clock();
-#ifdef USE_DEBUG_LIB
         if(etime>0.0 && stime>0.0) {
             threadtime(is->slotinfo->slotid, VIDEO_THREAD_ID, etime-stime-wtime, etime-ltime);
         }
 #endif
         wtime=0.0;
-        stime=xplayer_clock();
 #ifdef USE_DEBUG_LIB
+        stime=xplayer_clock();
         if(dmem && is->slotinfo->slotid<MAX_DEBUG_SLOT) {
             slotdebug_t* slotdebugs = debugmem_getslot(dmem);
             if(slotdebugs) {
@@ -4746,6 +4776,9 @@ static void* video_thread(void *arg)
         AVFilterBufferRef *picref;
         AVRational tb = filt_out->inputs[0]->time_base;
 #endif
+        is->slotinfo->tbden = is->video_st->time_base.den;
+        is->slotinfo->pts = pts_int;
+
         while ((ispaused(is) || globalpause(is->slotinfo)) && !triggermeh && !(is->slotinfo->status&(STATUS_PLAYER_SEEK)) && !is->videoq.abort_request) {
             st=xplayer_clock();
             usleep(1000);
@@ -4800,10 +4833,14 @@ static void* video_thread(void *arg)
 
             av_log(NULL, "[debug] video_thread(): ", "sum = %d\n", sum);
 
+#if FORCE_ACCURACY // current implementation causes troubles (i.e. too much wait time)
             if (sum != 100) {
                 xplayer_API_stepframe(is->slotinfo->slotid, triggermeh);
                 is->step = 0;
-            } else {
+            }
+            else
+#endif
+            {
                 if (is->video_st->time_base.den != 0)
                 currentframe = (double)(pts_int * is->slotinfo->fps/(is->video_st->time_base.den));
 
@@ -4817,18 +4854,19 @@ static void* video_thread(void *arg)
                     triggermeh = 0;
                     dont = 1;
                 }
-
+#if FORCE_ACCURACY
                 else if ((triggermeh+1)%AV_TIME_BASE == 0 || is->step < 0 || currentframe < 0) {
                     if ((triggermeh+1)%AV_TIME_BASE == 0) triggermeh = (triggermeh + 1)/AV_TIME_BASE;
                     xplayer_API_stepframe(is->slotinfo->slotid, triggermeh);
                     is->step = 0;
                 }
+#endif
                 else triggermeh = 0;
             }
         }
 
         if (is->step > 0 && !(is->slotinfo->status&(STATUS_PLAYER_SEEK))) {
-            is->step--;
+            //is->step--;
             is->valid_delay = INVALID_DELAY; // instant frame show, no delay
             while (is->step > 0) {
                 is->step--;
@@ -4845,6 +4883,7 @@ static void* video_thread(void *arg)
 
         if (is->slotinfo->status&(STATUS_PLAYER_SEEK)) {
             is->valid_delay = INVALID_DELAY;
+            is->slotinfo->status&=~(STATUS_PLAYER_SEEK);
         }
 
         if (!dont) lastret = ret = get_video_frame(is, frame, &pts_int, &pkt);
@@ -5089,7 +5128,7 @@ static void* subtitle_thread(void *arg)
     return NULL;
 }
 
-#if 1
+#if 0
 /* return the new audio buffer size (samples can be added or deleted
    to get better sync if video or external master clock) */
 static int synchronize_audio(VideoState *is, short *samples,
@@ -5190,6 +5229,7 @@ static void audio_add_to_buffer(VideoState *is, unsigned char* data, int data_si
     is->audio_decode_buffer_len+=data_size;
 }
 
+#if USE_AUDIOCORR_ZERO
 static void fill_zero(VideoState *is)
 {
     int len,n,ch,okch,c;
@@ -5301,6 +5341,7 @@ static void fill_zero_package(VideoState *is, unsigned char* data, int datalen)
     if(cmin>0) cmin=0;
 #endif
 }
+#endif
 
 static int audio_get_from_buffer(VideoState *is, unsigned char* data, int data_size)
 {
@@ -5915,6 +5956,7 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
         is->start_time=av_gettime();
         is->start_pts=is->audio_current_pts;
         is->start_pts=get_audio_clock(is);
+        is->slotinfo->start_pts=is->start_pts;
     }
     double spts = (av_gettime()-is->start_time) / 1000000.0;
     double rpts = is->audio_current_pts-is->start_pts;
@@ -6569,8 +6611,10 @@ static void* read_thread(void *arg)
     int64_t seek_target=0;
     int64_t seek_min=0;
     int64_t seek_max=0;
+#ifdef USE_DEBUG_LIB
     double ltime=0.0;
     double stime=0.0;
+#endif
     double etime=0.0;
     double wtime=0.0;
     double st, et;
@@ -6750,15 +6794,17 @@ static void* read_thread(void *arg)
         if(!is->slotinfo->pauseafterload && !(is->slotinfo->status &STATUS_PLAYER_OPENED)) {
             is->slotinfo->status|=(STATUS_PLAYER_OPENED);
         }
+#ifdef USE_DEBUG_LIB
         ltime=etime;
+#endif
         etime=xplayer_clock();
 #ifdef USE_DEBUG_LIB
         if(etime>0.0 && stime>0.0) {
             threadtime(is->slotinfo->slotid, READ_THREAD_ID, etime-stime-wtime, etime-ltime);
         }
-#endif
         wtime=0.0;
         stime=xplayer_clock();
+#endif
         readpass(is, -1, 1);
 
 #ifdef USE_DEBUG_LIB
@@ -7355,20 +7401,24 @@ static void event_loop(slotinfo_t* slotinfo)
     VideoState* is = (VideoState*)slotinfo->streampriv;
     int read_enable;
     double pos;
+#ifdef USE_DEBUG_LIB
     double stime = 0.0;
     double etime = 0.0;
     double ltime = 0.0;
+#endif
 
     while(slotinfo->streampriv) {
+#ifdef USE_DEBUG_LIB
         ltime=etime;
         etime=xplayer_clock();
-#ifdef USE_DEBUG_LIB
         if(etime>0.0 && stime>0.0) {
             threadtime(is->slotinfo->slotid, PROCESS_THREAD_ID, etime-stime, etime-ltime);
         }
 #endif
         event = wait_event(is->slotinfo->eventqueue);
+#ifdef USE_DEBUG_LIB
         stime=xplayer_clock();
+#endif
         if(!event)
             break;
         switch(event->type) {

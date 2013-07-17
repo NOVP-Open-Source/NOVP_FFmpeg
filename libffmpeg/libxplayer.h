@@ -1,3 +1,6 @@
+#ifndef int64_t
+typedef signed long long int 	int64_t;
+#endif
 
 #ifndef __LIBXPALAYER_H_
 #define __LIBXPALAYER_H_
@@ -463,6 +466,7 @@ int             xplayer_API_getaudio_format();
 char*           xplayer_API_getstatusline(int slot);
 void            xplayer_API_freestatusline(char* line);
 int             xplayer_API_isbuffering(int slot);
+int64_t         xplayer_API_getcurrentframe(int slot);
 #ifdef __cplusplus
 };
 #endif

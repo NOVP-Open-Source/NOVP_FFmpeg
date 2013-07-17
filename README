@@ -16,13 +16,8 @@
 #        2. Build          #
 ############################
 
-Mac OS X:
-  1. make -C libffmpeg
-
-Windows (to be fixed):
-  1. Launch mingw
-  2. Write make -C libffmpeg
-  3. Launch genwinlib.cmd to convert the generated libraries to MSVC format
+  Build command: make -C libffmpeg
+  NOTE for Windows users: You need to run this command through the MinGW shell.
 
 NOTE: To clean, run clean.sh
 NOTE: To force make, write "make -B -C libffmpeg"
@@ -31,9 +26,9 @@ NOTE: To force make, write "make -B -C libffmpeg"
 #        3. Credits        #
 ############################
 
- NOVP Team (www.novp.com)
+ NOVP Team (http://www.novp.com/)
 
- CAE-Engineering team (www.cae-engineering.hu):
+ CAE-Engineering team (http://www.cae-engineering.hu/):
  Máté Koch
  Attila Ötvös
  Tamás Szabó

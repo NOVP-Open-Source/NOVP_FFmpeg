@@ -2,14 +2,14 @@ CC=gcc
 LD=gcc
 
 ifeq ("${TERM}", "cygwin")
-CFLAGS = -g -Wall -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1
+CFLAGS = -g -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1
 LDFLAGS = 
 else
-CFLAGS = -g -Wall -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1 -arch i386
+CFLAGS = -g -I. -I../FFmpeg -DCONFIG_FASTMEMCPY=1 -arch i386
 LDFLAGS = -arch i386 -read_only_relocs suppress
 endif
 
-FFCFLAGS = -I../FFmpeg $(shell sdl-config --cflags)
+FFCFLAGS = -I../FFmpeg -Wformat-extra-args -Wformat $(shell sdl-config --cflags)
 LIBS = -lz -lm $(shell sdl-config --libs) -lSDL_ttf
 TARGETS = 
 
@@ -23,7 +23,7 @@ OBJS = aclib.o fmt-conversion.o libxplayer.o $(AFILTER) eventqueue.o libffplayop
 OBJFF=cmdutils.o
 OBJSHM=libshmem/libshmem.o
 
-ALL = libxplayer.a debugview
+ALL = libxplayer.a debugview done
 
 all:	$(STATICLIBS) $(ALL)
 
@@ -38,6 +38,21 @@ $(OBJECTS):	%.o:%.c $(STATICLIBS) config.h libffplay.h
 
 $(OBJS):	%.o:%.c $(STATICLIBS) config.h libffplay.h debug.h
 	$(CC) $(CFLAGS) -c $< -o $@
+
+done:
+ifeq ("${TERM}", "cygwin")
+	@echo 'Windows detected, converting libraries...' ; \
+	opwd=`pwd` ; \
+	cd "$(FFMPEGDIR)" ; \
+	$$opwd/objconv.exe -fcoff $$opwd/lib/libavcodec.a $$opwd/lib/libavcodec.lib > /dev/null ; \
+	$$opwd/objconv.exe -fcoff $$opwd/lib/libavfilter.a $$opwd/lib/libavfilter.lib > /dev/null ; \
+	$$opwd/objconv.exe -fcoff $$opwd/lib/libavformat.a $$opwd/lib/libavformat.lib > /dev/null ; \
+	$$opwd/objconv.exe -fcoff $$opwd/lib/libavutil.a $$opwd/lib/libavutil.lib > /dev/null ; \
+	$$opwd/objconv.exe -fcoff $$opwd/lib/libswscale.a $$opwd/lib/libswscale.lib > /dev/null ; \
+	$$opwd/objconv.exe -fcoff $$opwd/lib/libswresample.a $$opwd/lib/libswresample.lib > /dev/null ; \
+	$$opwd/objconv.exe -fcoff $$opwd/libxplayer.a $$opwd/libxplayer.lib > /dev/null
+	@echo 'Build done.'
+endif
 
 libxplayer.so.0.0: $(OBJS) $(STATICLIBS)
 	$(LD) -shared -gcc -Wl,-soname,libxplayer.so.0 -o libxplayer.so.0.0 $(OBJS) $(STATICLIBS) -lm -g $(LDFLAGS)
