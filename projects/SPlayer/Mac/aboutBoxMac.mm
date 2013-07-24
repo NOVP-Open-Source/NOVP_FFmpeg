@@ -4,7 +4,9 @@
 
 #include <Cocoa/Cocoa.h>
 
+#include <string>
 
+#include "../Version.h"
 
 
 
@@ -76,7 +78,12 @@ __strong static MyClass * abox = 0;
     [field setEditable:false];
     [field setBezeled:false];
     [field setDrawsBackground:false];
-    [field setStringValue:@"SPlayer by CAE 2013"];
+    
+    std::string aboutStr;
+    std::string verStr;
+    verStr = (SPLAYER_VERSION);
+    aboutStr = "SPlayer " + verStr + " by CAE 2013";
+    [field setStringValue:[NSString stringWithUTF8String:aboutStr.c_str()]];
     [[mwin contentView] addSubview:field];
     
     
