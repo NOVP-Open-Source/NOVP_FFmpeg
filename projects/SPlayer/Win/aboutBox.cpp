@@ -2,7 +2,11 @@
 #include <windows.h>
 #include <Winuser.h>
 
+#include <string>
+
 #include "winres.h"
+
+#include "../Version.h"
 
 //dialog based on
 //http://msdn.microsoft.com/en-us/library/windows/desktop/ms644996(v=vs.85).aspx#template_in_memory
@@ -137,7 +141,7 @@ static LRESULT DisplayMyMessage(HINSTANCE hinst, HWND hwndOwner, LPSTR lpszMessa
     lpw = lpwAlign(lpw);    // Align DLGITEMTEMPLATE on DWORD boundary
     lpdit = (LPDLGITEMTEMPLATE)lpw;
     lpdit->x  = 110; lpdit->y  = 10;
-    lpdit->cx = 40; lpdit->cy = 20;
+    lpdit->cx = 40; lpdit->cy = 40;
     //lpdit->id = ID_TEXT;    // Text identifier
     lpdit->style = WS_CHILD | WS_VISIBLE | SS_LEFT;
 
@@ -163,7 +167,15 @@ static LRESULT DisplayMyMessage(HINSTANCE hinst, HWND hwndOwner, LPSTR lpszMessa
 void showCaeAboutBox(HWND hWnd)
 {
   if (hWnd == NULL) { return; }
-  DisplayMyMessage(GetModuleHandle(NULL), hWnd, "SPlayer by CAE 2013");
+
+  std::string splayerVer;
+  std::string aboutStr;
+
+  splayerVer = SPLAYER_VERSION;
+  aboutStr = "SPlayer " + splayerVer + " by  CAE 2013 ";
+  LPSTR s = const_cast<char *>(aboutStr.c_str());
+
+  DisplayMyMessage(GetModuleHandle(NULL), hWnd, s);
 }//showcaeabout
 
 
