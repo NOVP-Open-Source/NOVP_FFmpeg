@@ -100,3 +100,7 @@ set(PBIN "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${PROJECT_NAME}.plugin
 
 # Copy plugin to /Library/Internet Plug-Ins (all users)
 releasePlugin("${PROJECT_NAME}" "${PBIN}" "/Library/Internet Plug-Ins")
+
+#create .dmg installer
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/Mac/installer.cmake")
+
