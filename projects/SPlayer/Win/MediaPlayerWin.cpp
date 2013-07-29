@@ -208,6 +208,8 @@ bool MediaPlayer::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow * win)
 {
 
     if (m_context->hwnd == 0) { return false; }
+
+    
     
     //windows even handling is needed for  WM_COMMAND (that is how the popup menu sends commands)
 
@@ -220,9 +222,11 @@ bool MediaPlayer::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow * win)
         return true;
     }//endif
 
+/*
+//fixes flickering on XP, but on some systems using Win7 breaks rendering altogether
     if (evt->uMsg == WM_ERASEBKGND)
     { return true; }
-
+*/
 
     return false;
 }//onwinevent
