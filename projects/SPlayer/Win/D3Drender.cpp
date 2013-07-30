@@ -22,10 +22,11 @@ static int getNearPowTwo(int num);
             if (hWnd == NULL) {  return; } //no window
             if (hWnd == mHwnd) {  return; } //same window 
             if (mHwnd != NULL && (mHwnd != hWnd)) { release(); Sleep(2); } //new window: get rid of old context
-                mHwnd = hWnd;
+              
+              mHwnd = hWnd;
 
             #ifdef D3DSLOG
-            slog("D3Drender init device on hwnd %d \n", hWnd);
+            slog("D3Drender init device on hwnd %p \n", hWnd);
             #endif
 
 		     d3d = Direct3DCreate9(D3D_SDK_VERSION);
@@ -34,6 +35,7 @@ static int getNearPowTwo(int num);
              if (d3d == 0)
              {
                  slog("D3Drender error -- cannot create device \n");
+                 mHwnd = NULL;
                  return;
              }//endif
 
@@ -58,6 +60,9 @@ static int getNearPowTwo(int num);
             //init vertex buffer for our quad
     		    initVertBuffer();
 
+            #ifdef D3DSLOG
+                slog("D3Drender init succesful \n");
+            #endif
 	    }//initd3d
 
 
@@ -292,6 +297,9 @@ D3Dtex::initTexture(IDirect3DDevice9 * pDevice, int size)
 
              if (ptex == NULL) { slog("D3Dtex error: couldn't create texture \n"); return; }
  
+             #ifdef D3DSLOG
+                slog("D3Dtex  texture creation succesful  \n");
+            #endif
 	}//inittex
 
 

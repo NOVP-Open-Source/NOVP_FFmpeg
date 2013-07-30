@@ -72,12 +72,13 @@ struct PlayerContext
     std::string error;
     std::string file;
 
-    PlayerContext() :  hwnd(0), n(0), win(0) {}
+    PlayerContext() :  hwnd(0), n(0), win(0), run(0) {}
 };
 
 
 void startVidThread(PlayerContext * context)
 {
+    slog("startvidthread   context->run %d \n ", context->run);
     if (context->run > 0) { return; } //already started the thread
     
     context->run = 1;
@@ -89,7 +90,7 @@ void startVidThread(PlayerContext * context)
 
 void endVidThread(PlayerContext * context)
 {
-  if (context->run <= 0) { return; } //already closed threa
+  if (context->run <= 0) { return; } //already closed thread
   context->run = 0;
   WaitForSingleObject(context->hThread, INFINITE);
   
@@ -114,6 +115,7 @@ MediaPlayer::MediaPlayer(int pluginIdentifier, int slotIdentifier, int loglevel,
     m_context = PlayerContextPtr(new PlayerContext);
     m_context->hwnd = 0;
     m_context->slot = slotId;
+    m_context->run = 0;
     
     startVidThread(m_context.get());
     
@@ -127,8 +129,10 @@ MediaPlayer::~MediaPlayer()
     stop();
     
     endVidThread(m_context.get());
+
+    slog("dtor context->run %d \n", m_context->run);
   
-    slog("dtor slot:%d", slotId);
+    slog("dtor slot:%d \n", slotId);
 }//dtor
 
 
@@ -222,12 +226,21 @@ bool MediaPlayer::onWindowsEvent(FB::WindowsEvent* evt, FB::PluginWindow * win)
         return true;
     }//endif
 
-/*
+
 //fixes flickering on XP, but on some systems using Win7 breaks rendering altogether
+//update: rendering wasn't broken, the vid thread itself wasn't starting
+//but that was due to a mistake (m_context->run was not initialised)
     if (evt->uMsg == WM_ERASEBKGND)
     { return true; }
-*/
 
+
+/*
+    if (evt->uMsg == WM_ACTIVATEAPP)
+    {
+        slog("WM_ACTIVATEAPP received \n");
+        return false;
+    }
+*/
     return false;
 }//onwinevent
 
@@ -605,7 +618,7 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 				slog("Result: %d %s\n",result,dserr2str(result));
 //				return false;
 			}
-//			result = m_secondaryBuffer->Play(0, 0, 0);
+//			result = m_secondaryBuffer->Play(0, 0, 0);tor
 			result = m_secondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 			if(FAILED(result))
 			{
@@ -831,7 +844,7 @@ DWORD WINAPI VidThreadFunction(LPVOID lpParam)
 
     d3dlocal.release(); //release directx9 context
 
-    slog("end of video process (2) \n");
+    slog("end of video process \n");
     xplayer_API_videoprocessdone(priv->slot);
     priv->run=0;
 	return NULL;

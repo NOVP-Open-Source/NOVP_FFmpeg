@@ -1,6 +1,6 @@
 [Setup]
 AppName=SPlayer
-AppVersion=1.0
+AppVersion=2.0.0
 AppId=CaeSplayer
 DefaultDirName={pf}\SPlayer
 DefaultGroupName=SPlayer
