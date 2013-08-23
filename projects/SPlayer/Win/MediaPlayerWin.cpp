@@ -460,7 +460,7 @@ static char * dserr2str(int err)
 
 DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 {
-	char abuffer[0x10000];
+	char abuffer[8192];
 //	aoconf_t* aoconf;
 	int rate = xplayer_API_getaudio_rate();
 	int channels = xplayer_API_getaudio_channels();
@@ -562,7 +562,7 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 
 	// Set the buffer description of the secondary sound buffer that the wave file will be loaded onto.
 	bufferDesc.dwSize = sizeof(DSBUFFERDESC);
-	bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME | DSBCAPS_GLOBALFOCUS;
+	bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME | DSBCAPS_GLOBALFOCUS | DSBCAPS_CTRLPOSITIONNOTIFY | DSBCAPS_GETCURRENTPOSITION2;;
 	bufferDesc.dwBufferBytes = sizeof(abuffer);
 	bufferDesc.dwReserved = 0;
 	bufferDesc.lpwfxFormat = &waveFormat;
@@ -588,44 +588,56 @@ DWORD WINAPI AoThreadFunction( LPVOID lpParam )
 	tempBuffer->Release();
 	tempBuffer = 0; 
 
+	result = m_secondaryBuffer->SetCurrentPosition(0);
+	result = m_secondaryBuffer->SetVolume(DSBVOLUME_MAX);
+
+	// Create Notification Handles
+	HANDLE NotifyEvent[3];
+	NotifyEvent[0] = CreateEvent(NULL,TRUE,FALSE,NULL);
+	NotifyEvent[1] = CreateEvent(NULL,TRUE,FALSE,NULL);
+
+    LPDIRECTSOUNDNOTIFY8 lpDsNotify;
+    DSBPOSITIONNOTIFY PositionNotify[2];
+
+	if (result = m_secondaryBuffer->QueryInterface(IID_IDirectSoundNotify8,(LPVOID*)&lpDsNotify) == DS_OK) {
+		PositionNotify[0].dwOffset = sizeof(abuffer)/2;
+		PositionNotify[0].hEventNotify = NotifyEvent[0];
+		PositionNotify[1].dwOffset = sizeof(abuffer) - 1;
+		PositionNotify[1].hEventNotify = NotifyEvent[1];
+		if (result = lpDsNotify->SetNotificationPositions(2, PositionNotify) == DS_OK) {
+			lpDsNotify->Release();
+		}
+	}
+
 	slog("audio thread: start audio\n");
+	result = m_secondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+
 	while(aThRun) {
-		len=xplayer_API_getaudio(abuffer, sizeof(abuffer));
-		if(len)
-		{
-			m_secondaryBuffer->Lock(0, len, (void**)&bufferPtr, (DWORD*)&bufferSize, NULL, 0, 0);
-//			slog("audio thread: copy %d (%d) bytes from %p to %p\n",len,bufferSize,abuffer,bufferPtr);
-			if(bufferPtr)
-				memcpy(bufferPtr,abuffer,len);
-			result = m_secondaryBuffer->Unlock((void*)bufferPtr, bufferSize, NULL, 0);
-			if(FAILED(result))
-			{
-				slog("audio thread: unlock fail.\n");
-				slog("Result: %d %s\n",result,dserr2str(result));
-//				return false;
-			}
-			result = m_secondaryBuffer->SetCurrentPosition(0);
-			if(FAILED(result))
-			{
-				slog("audio thread: setCurrentPosition fail.\n");
-				slog("Result: %d %s\n",result,dserr2str(result));
-//				return false;
-			}
-			result = m_secondaryBuffer->SetVolume(DSBVOLUME_MAX);
-			if(FAILED(result))
-			{
-				slog("audio thread: setVolume fail.\n");
-				slog("Result: %d %s\n",result,dserr2str(result));
-//				return false;
-			}
-//			result = m_secondaryBuffer->Play(0, 0, 0);tor
-			result = m_secondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
-			if(FAILED(result))
-			{
-				slog("audio thread: play fail.\n");
-			}
- 		}
-        Sleep(1);
+		len = 0;
+
+		while (len != sizeof(abuffer)/2) {
+			int len2 = xplayer_API_getaudio(abuffer+len, sizeof(abuffer)/2 - len);
+			len += len2;
+			Sleep(1);
+		}
+
+		int delta = 0;
+		if (result-WAIT_OBJECT_0 == 0) {
+			// Buffer reached half
+			delta = sizeof(abuffer)/2;
+			ResetEvent(NotifyEvent[0]);
+		}
+		else if (result-WAIT_OBJECT_0 == 1) {
+			// Buffer reached end
+			delta = 0;
+			ResetEvent(NotifyEvent[1]);
+		}
+		else break;
+
+		m_secondaryBuffer->Lock(delta, len, (void**)&bufferPtr, (DWORD*)&bufferSize, NULL, 0, 0);
+		if (bufferPtr) memcpy(bufferPtr,abuffer,len);
+		result = m_secondaryBuffer->Unlock((void*)bufferPtr, bufferSize, NULL, 0);
+		result = WaitForMultipleObjects(2,NotifyEvent,FALSE,INFINITE);
     }
 	slog("audio thread: end audio\n");
 
