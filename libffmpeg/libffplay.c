@@ -20,6 +20,7 @@
  */
 
 
+#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
 #define THREAD_DEBUG 1
 #define DEBUG_DIVIMGSIZE 1
 #define NOWAIT_ENDOF_SLOTPROCESS 1
@@ -69,12 +70,6 @@
 # include "libavfilter/buffersink.h"
 #endif
 
-#if defined(__APPLE__)
-#include "../ffmpeg/libavcodec/vda.h"
-static int vdaframeno = 0;
-static unsigned int vdaframes_pop = 0;
-static unsigned int vdaframes_release = 0;
-#endif
 static unsigned int mpi_alloc = 0;
 static unsigned int mpi_free = 0;
 
@@ -101,9 +96,10 @@ static unsigned int mpi_free = 0;
 #if HAVE_PTHREADS
 #include <pthread.h>
 #elif HAVE_W32THREADS
-#include "libavcodec/w32pthreads.h"
+#define HAVE_CBRT 1
+#include "compat/w32pthreads.h"
 #elif HAVE_OS2THREADS
-#include "libavcodec/os2threads.h"
+#include "compat/os2threads.h"
 #endif 
 
 #include "libffplayopts.h"
@@ -133,6 +129,7 @@ int triggermeh = 0;
 int dont = 0;
 int laserbeams = 0;
 int lastret = 0;
+int shouldpause = 0;
 
 static pthread_mutex_t xplayer_global_mutex;
 static xplayer_global_status_t * xplayer_global_status = NULL;
@@ -445,7 +442,6 @@ static slotinfo_t* init_slotinfo(int slot) {
     slotinfo->w=0;
     slotinfo->h=0;
     slotinfo->imgfmt=0;
-    slotinfo->vdaframe=0;
     slotinfo->av_sync_type=AV_SYNC_AUDIO_MASTER;
 //    slotinfo->av_sync_type=AV_SYNC_EXTERNAL_CLOCK;
     slotinfo->workaround_bugs=1;
@@ -677,10 +673,6 @@ static void *audio_process(void *data) {
                 maindebug->audio_slot=-1;
                 maindebug->mpi_alloc=mpi_alloc;
                 maindebug->mpi_free=mpi_free;
-#if defined(__APPLE__)
-                maindebug->vdaframes_pop=vdaframes_pop;
-                maindebug->vdaframes_release=vdaframes_release;
-#endif
             }
         }
 #endif
@@ -869,10 +861,6 @@ static void wait_for_free_image(slotinfo_t* slotinfo) {
                 empty=0;
                 break;
             }
-            if(slotinfo->freeable_vdaframe[i]) {
-                empty=0;
-                break;
-            }
         }
         if(empty)
             break;
@@ -881,45 +869,6 @@ static void wait_for_free_image(slotinfo_t* slotinfo) {
     }
     av_log(NULL, AV_LOG_DEBUG,"[debug] wait_for_free_image(): slot: %d Ok ****************************\n\n",slotinfo->slotid);
     pthread_mutex_unlock(&slotinfo->mutex);
-}
-
-static void add_freeable_vdaframe(slotinfo_t* slotinfo, void* vdaframe, int nolock) {
-#ifndef USE_LOCKIMAGE
-    int exist = 0;
-    int empty = -1;
-    int i;
-#endif
-
-    if(!nolock)
-        pthread_mutex_lock(&slotinfo->mutex);
-#ifdef USE_LOCKIMAGE
-    if(vdaframe) {
-        if(slotinfo->lockvdaframe!=vdaframe) {
-            if(slotinfo->vdaframe==vdaframe)
-                slotinfo->vdaframe=NULL;
-#if defined(__APPLE__)
-            vdaframeno--;
-            vdaframes_release++;
-            ff_vda_release_vda_frame(vdaframe);
-#endif
-        }
-    }
-#else
-    for(i=0;i<MAX_IMAGES;i++) {
-        if(!slotinfo->freeable_vdaframe[i] && (empty == -1) ) {
-            empty=i;
-        }
-        if(slotinfo->freeable_vdaframe[i]==vdaframe) {
-            exist = 1;
-            break;
-        }
-    }
-    if(!exist && empty!=-1) {
-        slotinfo->freeable_vdaframe[empty]=vdaframe;
-    }
-#endif
-    if(!nolock)
-        pthread_mutex_unlock(&slotinfo->mutex);
 }
 
 void xplayer_API_init(int log_level, const char* logfile) {
@@ -971,7 +920,7 @@ void xplayer_API_done() {
         xplayer_global_status->run=0;
         while(slotinfo) {
             slotinfo->doneflag=1;
-            event.type = FF_STOP_EVENT;
+            event.type = FF_CLOSE_EVENT;
             event.data = slotinfo->streampriv;
             push_event(slotinfo->eventqueue, &event);
 #ifdef DEBUG_DONE
@@ -1375,29 +1324,6 @@ int xplayer_API_setimage(int slot, int w, int h, unsigned int fmt) {
     return 0;
 }
 
-int xplayer_API_setvda(int slot, int vda) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-
-    apicall(slot, 3);
-    pthread_mutex_lock(&slotinfo->mutex);
-    slotinfo->vda=vda;
-    pthread_mutex_unlock(&slotinfo->mutex);
-    apicall(slot, 0);
-    return 0;
-}
-
-int xplayer_API_isvda(int slot) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-    int ret = 0;
-
-    apicall(slot, 4);
-    pthread_mutex_lock(&slotinfo->mutex);
-    ret = slotinfo->usesvda;
-    pthread_mutex_unlock(&slotinfo->mutex);
-    apicall(slot, 0);
-    return ret;
-}
-
 int xplayer_API_enableaudio(int slot, int enable) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
 
@@ -1438,7 +1364,7 @@ int xplayer_API_loadurl(int slot, char* url) {
     pthread_mutex_lock(&slotinfo->mutex);
     if(slotinfo->url && url && strcmp(slotinfo->url,url)) {
         if(slotinfo->status) {
-            event.type = FF_STOP_EVENT;
+            event.type = FF_CLOSE_EVENT;
             event.data = slotinfo->streampriv;
             push_event(slotinfo->eventqueue, &event);
         }
@@ -1477,7 +1403,7 @@ char* xplayer_API_geturl(int slot) {
     return url;
 }
 
-int xplayer_API_unloadurl(int slot) {
+int xplayer_API_close(int slot) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     int ret = -1;
     event_t event;
@@ -1487,10 +1413,11 @@ int xplayer_API_unloadurl(int slot) {
     slotinfo->playflag=0;
     slotinfo->pauseflag=0;
     slotinfo->pauseafterload=0;
+    slotinfo->fn=0;
     if(slotinfo->url && slotinfo->status) {
         av_free(slotinfo->url);
         slotinfo->url=NULL;
-        event.type = FF_STOP_EVENT;
+        event.type = FF_CLOSE_EVENT;
         event.data = slotinfo->streampriv;
         push_event(slotinfo->eventqueue, &event);
         ret=0;
@@ -1508,6 +1435,13 @@ int xplayer_API_play(int slot) {
     if((slotinfo->debugflag & DEBUGFLAG_GROUP)) {
         av_log(NULL,DEBUG_FLAG_LOG_LEVEL,"API_Play(%d)\n",slot);
     }
+
+    if ((slotinfo->status & STATUS_PLAYER_STOPPED) && slotinfo->url != NULL) {
+        xplayer_API_close(slotinfo->slotid);
+        xplayer_API_setimage(slotinfo->slotid, 0, 0, IMGFMT_BGR32);
+        xplayer_API_sethwbuffersize(slotinfo->slotid, xplayer_API_prefilllen());
+        xplayer_API_loadurl(slotinfo->slotid, slotinfo->currenturl);
+    }
     apicall(slot, 10);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->pauseafterload=0;
@@ -1522,7 +1456,7 @@ int xplayer_API_play(int slot) {
     if(slotinfo->url) {
         if(safestrcmp(slotinfo->currenturl,slotinfo->url)) {
             slotinfo->pauseflag=0;
-            event.type = FF_STOP_EVENT;
+            event.type = FF_CLOSE_EVENT;
             event.data = slotinfo->streampriv;
             push_event(slotinfo->eventqueue, &event);
         } else if(slotinfo->pauseflag) {
@@ -1531,6 +1465,7 @@ int xplayer_API_play(int slot) {
             event.data = slotinfo->streampriv;
             push_event(slotinfo->eventqueue, &event);
         }
+        slotinfo->status &= ~(STATUS_PLAYER_STOPPED);
         slotinfo->playflag=1;
         ret=0;
     }
@@ -1673,6 +1608,7 @@ int xplayer_API_stop(int slot) {
     int ret = -1;
     event_t event;
 
+    xplayer_API_seek(slot, 0);
     apicall(slot, 14);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->playflag=0;
@@ -1848,6 +1784,17 @@ int xplayer_API_getstatus(int slot) {
     return ret;
 }
 
+void xplayer_API_setstatuscallback(int slot, void (*fn)(unsigned int)) {
+    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
+    int ret;
+
+    apicall(slot, 22);
+    pthread_mutex_lock(&slotinfo->mutex);
+    slotinfo->fn = fn;
+    pthread_mutex_unlock(&slotinfo->mutex);
+    apicall(slot, 0);
+}
+
 int xplayer_API_seekfinished(int slot) {
     return triggermeh == 0;
 }
@@ -1972,28 +1919,6 @@ int xplayer_API_imagedone(int slot) {
     return ret;
 }
 
-int xplayer_API_vdaframedone(int slot) {
-    int ret = -1;
-#ifdef USE_LOCKIMAGE
-#if defined(__APPLE__)
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-
-    apicall(slot, 29);
-    pthread_mutex_lock(&slotinfo->mutex);
-    if(slotinfo->lockvdaframe) {
-            vdaframeno--;
-            vdaframes_release++;
-            ff_vda_release_vda_frame(slotinfo->lockvdaframe);
-        slotinfo->lockvdaframe=NULL;
-        ret=0;
-    }
-    pthread_mutex_unlock(&slotinfo->mutex);
-    apicall(slot, 0);
-#endif
-#endif
-    return ret;
-}
-
 int xplayer_API_freeableimage(int slot, mp_image_t** img) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     int ret = -1;
@@ -2062,128 +1987,8 @@ int xplayer_API_videoprocessdone(int slot) {
             ret=0;
         }
     }
-    for(i=0;i<MAX_IMAGES;i++) {
-        if(slotinfo->freeable_vdaframe[i]) {
-#if defined(__APPLE__)
-            vdaframeno--;
-            vdaframes_release++;
-            ff_vda_release_vda_frame(slotinfo->freeable_vdaframe[i]);
-#endif
-            slotinfo->freeable_vdaframe[i]=NULL;
-            ret=0;
-        }
-    }
     pthread_cond_signal(&slotinfo->freeable_cond);
     av_log(NULL, AV_LOG_DEBUG,"[debug] xplayer_API_videoprocessdone(): slot: %d OK \n",slotinfo->slotid);
-    pthread_mutex_unlock(&slotinfo->mutex);
-    apicall(slot, 0);
-    return ret;
-}
-
-int xplayer_API_getvdaframe(int slot, void** vdaframe) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-    int ret = -1;
-
-    if(!vdaframe) {
-        return ret;
-    }
-    *vdaframe=NULL;
-    apicall(slot, 33);
-    pthread_mutex_lock(&slotinfo->mutex);
-    if(slotinfo->doneflag==2)
-        slotinfo->doneflag=0;
-    if(slotinfo->url && slotinfo->status) {
-        if(slotinfo->vdaframe) {
-#ifdef USE_LOCKIMAGE
-            if(slotinfo->lockvdaframe) {
-#if defined(__APPLE__)
-                vdaframeno--;
-                vdaframes_release++;
-                ff_vda_release_vda_frame(slotinfo->lockvdaframe);
-#endif
-            }
-#endif
-            *vdaframe = slotinfo->vdaframe;
-#ifdef USE_LOCKIMAGE
-            slotinfo->lockvdaframe=slotinfo->vdaframe;
-            slotinfo->vdaframe=NULL;
-#endif
-//            slotinfo->vdaframe=NULL;
-//            add_freeable_vdaframe(slotinfo, *vdaframe, 1);
-            ret=1;
-        } else {
-            ret=0;
-        }
-    }
-    pthread_mutex_unlock(&slotinfo->mutex);
-    apicall(slot, 0);
-    return ret;
-}
-
-void* xplayer_API_vdaframe2cvbuffer(int slot, void* vdaframe) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-
-    if(!slotinfo || !vdaframe) {
-        return NULL;
-    }
-    if(vdaframe) {
-#if defined(__APPLE__)
-        vda_frame * ptr_vda_frame = (vda_frame *)vdaframe;
-        return ptr_vda_frame->cv_buffer;
-#endif
-    }
-    return NULL;
-}
-
-int xplayer_API_freeablevdaframe(int slot, void** vdaframe) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-    int ret = -1;
-    int i;
-
-    if(!vdaframe) {
-        return ret;
-    }
-    *vdaframe = NULL;
-    ret = 1;
-    apicall(slot, 34);
-    pthread_mutex_lock(&slotinfo->mutex);
-    for(i=0;i<MAX_IMAGES;i++) {
-        if(slotinfo->freeable_vdaframe[i]) {
-            *vdaframe = slotinfo->freeable_vdaframe[i];
-            ret = 0;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&slotinfo->mutex);
-    apicall(slot, 0);
-    return ret;
-}
-
-int xplayer_API_freevdaframe(int slot, void* vdaframe) {
-    slotinfo_t* slotinfo = get_slot_info(slot,1,1);
-    int ret = -1;
-    int i;
-
-    if(!vdaframe) {
-        return ret;
-    }
-    apicall(slot, 35);
-    pthread_mutex_lock(&slotinfo->mutex);
-    for(i=0;i<MAX_IMAGES;i++) {
-        if(slotinfo->freeable_vdaframe[i]==vdaframe) {
-#if defined(__APPLE__)
-            vdaframeno--;
-            vdaframes_release++;
-            ff_vda_release_vda_frame(vdaframe);
-#endif
-            slotinfo->freeable_vdaframe[i]=NULL;
-            ret = 0;
-            break;
-        }
-    }
-    if(!ret) {
-        pthread_cond_signal(&slotinfo->freeable_cond);
-    }
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
     return ret;
@@ -2416,7 +2221,7 @@ void print_error(const char *filename, int err)
 
 #define MAX_QUEUE_SIZE (15 * 1024 * 1024)
 #define MIN_AUDIOQ_SIZE (20 * 16 * 1024)
-#define MIN_FRAMES 5
+#define MIN_FRAMES 50000
 
 /* SDL audio buffer size, in samples. Should be small to have precise
    A/V sync as SDL does not have hardware buffer fullness info. */
@@ -2465,12 +2270,6 @@ typedef struct VideoPicture {
 #if CONFIG_AVFILTER
     AVFilterBufferRef *picref;
 #endif
-    int usesvda;
-#if defined(__APPLE__)
-    vda_frame * vdaframe;
-#else
-    void * vdaframe;
-#endif
 } VideoPicture;
 
 typedef struct SubPicture {
@@ -2489,6 +2288,7 @@ typedef struct VideoState {
     int read_tidinited;
     pthread_t read_tid;
     pthread_t video_tid;
+    pthread_t statuscallback_tid;
     int refresh_tidinited;
     pthread_t refresh_tid;
     AVInputFormat *iformat;
@@ -2538,7 +2338,7 @@ typedef struct VideoState {
     AVStream *audio_st;
     PacketQueue audioq;
     int audio_hw_buf_size;
-    DECLARE_ALIGNED(16,uint8_t,audio_buf2)[AVCODEC_MAX_AUDIO_FRAME_SIZE * 4];
+    DECLARE_ALIGNED(16,uint8_t,audio_buf2)[MAX_AUDIO_FRAME_SIZE * 4];
     uint8_t silence_buf[SDL_AUDIO_BUFFER_SIZE];
     uint8_t *audio_buf;
     uint8_t *audio_buf1;
@@ -2631,10 +2431,6 @@ typedef struct VideoState {
     AVPacket flush_pkt;
     int screen;
     int sws_flags;
-    int usesvda;
-#if defined(__APPLE__)
-    struct vda_context vdactx;
-#endif
 
     int read_enable;
     double buffer_time;
@@ -2673,6 +2469,7 @@ static char *vfilters = NULL;
 #endif
 
 static void toggle_pause(VideoState *is);
+void statuscallback(VideoState *, int, int);
 
 static int ispaused(VideoState *is)
 {
@@ -2907,8 +2704,14 @@ static int packet_queue_get(VideoState *is, PacketQueue *q, AVPacket *pkt, int b
             ret = 0;
             break;
         } else {
+            is->slotinfo->status |= STATUS_PLAYER_BUFFERING;
+            statuscallback(is, STATUS_PLAYER_BUFFERING, 1);
             pthread_cond_wait(&q->cond, &q->mutex);
         }
+    }
+    if (is->slotinfo->status & (STATUS_PLAYER_BUFFERING)) {
+        is->slotinfo->status &= (~STATUS_PLAYER_BUFFERING);
+        statuscallback(is, STATUS_PLAYER_BUFFERING, 0);
     }
     pthread_mutex_unlock(&q->mutex);
     return ret;
@@ -3158,7 +2961,7 @@ static void video_image_display(VideoState *is)
     int i;
 
     vp = &is->pictq[is->pictq_rindex];
-    if (vp->bmp || vp->vdaframe) {
+    if (vp->bmp) {
 #if CONFIG_AVFILTER
          if (vp->picref->video->sample_aspect_ratio.num == 0)
              aspect_ratio = 0;
@@ -3219,10 +3022,6 @@ static void video_image_display(VideoState *is)
 
         pthread_mutex_lock(&is->slotinfo->mutex);
         is->slotinfo->img = vp->bmp;
-        if(is->slotinfo->vdaframe)
-            add_freeable_vdaframe(is->slotinfo, is->slotinfo->vdaframe, 1);
-        is->slotinfo->vdaframe = vp->vdaframe;
-        vp->vdaframe = NULL;
 
         is->slotinfo->newimageflag=1;
         if(is->pause_seek) {
@@ -3320,21 +3119,6 @@ static void stream_close(VideoState *is)
             }
         }
         vp->tempimg = NULL;
-        if(vp->vdaframe) {
-            if(is->slotinfo->doneflag)
-#if defined(__APPLE__)
-            {
-                vdaframeno--;
-                vdaframes_release++;
-                ff_vda_release_vda_frame(vp->vdaframe);
-            }
-#else
-            {}
-#endif
-            else
-                add_freeable_vdaframe(is->slotinfo, vp->vdaframe, 0);
-            vp->vdaframe=NULL;
-        }
     }
     is->slotinfo->status|=(STATUS_WAIT_FOR_FREE_IMAGE);
     wait_for_free_image(is->slotinfo);
@@ -3570,6 +3354,7 @@ static void stream_toggle_pause(VideoState *is)
         is->slotinfo->status&=~(STATUS_PLAYER_PAUSE);
 #endif
     }
+    statuscallback(is, STATUS_PLAYER_PAUSE, is->slotinfo->status&STATUS_PLAYER_PAUSE ? 1 : 0);
     pthread_mutex_unlock(&is->event_mutex);
 }
 
@@ -4039,20 +3824,6 @@ static void alloc_picture(void *opaque)
         }
     }
     vp->tempimg=NULL;
-    if(vp->vdaframe) {
-        if(is->slotinfo->doneflag) {
-#if defined(__APPLE__)
-            vdaframeno--;
-            vdaframes_release++;
-            ff_vda_release_vda_frame(vp->vdaframe);
-#endif
-        } else {
-#if defined(__APPLE__)
-            add_freeable_vdaframe(is->slotinfo, vp->vdaframe, 0);
-#endif
-        }
-    }
-    vp->vdaframe=NULL;
 #if CONFIG_AVFILTER
     if (vp->picref)
         avfilter_unref_buffer(vp->picref);
@@ -4092,30 +3863,28 @@ static void alloc_picture(void *opaque)
         is->pix_fmt = imgfmt2pixfmt(is->slotinfo->imgfmt);
     }
     av_log(NULL, AV_LOG_DEBUG,"[debug] alloc_picture(): set output format: %s\n",vo_format_name(is->slotinfo->imgfmt));
-    if(is->usesvda!=FLAG_VDA_FRAME)
-    {
-        vp->bmp = alloc_mpi(vp->width, vp->height, is->slotinfo->imgfmt);
-        if (!vp->bmp || vp->bmp->stride[0] < vp->width) {
+
+    vp->bmp = alloc_mpi(vp->width, vp->height, is->slotinfo->imgfmt);
+    if (!vp->bmp || vp->bmp->stride[0] < vp->width) {
+        /* SDL allocates a buffer smaller than requested if the video
+         * overlay hardware is unable to support the requested size. */
+        av_log(NULL, AV_LOG_ERROR, "[error] Error: the video system does not support an image\n"
+                        "size of %dx%d pixels. Try using -lowres or -vf \"scale=w:h\"\n"
+                        "to reduce the image size.\n", vp->width, vp->height );
+        do_exit(is);
+    }
+    mpi_alloc++;
+    if(is->slotinfo->w && is->slotinfo->h && (is->slotinfo->w/DEBUG_DIVIMGSIZE!=vp->owidth || is->slotinfo->h/DEBUG_DIVIMGSIZE!=vp->oheight)) {
+        vp->tempimg = alloc_mpi(vp->owidth, vp->oheight, is->slotinfo->imgfmt);
+        if (!vp->tempimg || vp->tempimg->stride[0] < vp->owidth) {
             /* SDL allocates a buffer smaller than requested if the video
              * overlay hardware is unable to support the requested size. */
             av_log(NULL, AV_LOG_ERROR, "[error] Error: the video system does not support an image\n"
                             "size of %dx%d pixels. Try using -lowres or -vf \"scale=w:h\"\n"
-                            "to reduce the image size.\n", vp->width, vp->height );
+                            "to reduce the image size.\n", vp->owidth, vp->oheight );
             do_exit(is);
         }
         mpi_alloc++;
-        if(is->slotinfo->w && is->slotinfo->h && (is->slotinfo->w/DEBUG_DIVIMGSIZE!=vp->owidth || is->slotinfo->h/DEBUG_DIVIMGSIZE!=vp->oheight)) {
-            vp->tempimg = alloc_mpi(vp->owidth, vp->oheight, is->slotinfo->imgfmt);
-            if (!vp->tempimg || vp->tempimg->stride[0] < vp->owidth) {
-                /* SDL allocates a buffer smaller than requested if the video
-                 * overlay hardware is unable to support the requested size. */
-                av_log(NULL, AV_LOG_ERROR, "[error] Error: the video system does not support an image\n"
-                                "size of %dx%d pixels. Try using -lowres or -vf \"scale=w:h\"\n"
-                                "to reduce the image size.\n", vp->owidth, vp->oheight );
-                do_exit(is);
-            }
-            mpi_alloc++;
-        }
     }
 
     pthread_mutex_lock(&is->pictq_mutex);
@@ -4165,7 +3934,7 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
     vp->duration = frame_delay;
 
     /* alloc or resize hardware picture buffer */
-    if ((!vp->bmp && is->usesvda!=FLAG_VDA_FRAME) || vp->reallocate ||
+    if ((!vp->bmp) || vp->reallocate ||
 #if CONFIG_AVFILTER
         vp->width  != is->out_video_filter->inputs[0]->w ||
         vp->height != is->out_video_filter->inputs[0]->h) {
@@ -4248,24 +4017,17 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
                         vp->pix_fmt, vp->width, vp->height);
 #else
         is->sws_flags = av_get_int(is->slotinfo->sws_opts, "sws_flags", NULL);
-        if(is->usesvda)
-        {
+        if(vp->tempimg) {
             is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                vp->width, vp->height, PIX_FMT_UYVY422, vp->width, vp->height,
+                vp->owidth, vp->oheight, vp->pix_fmt, vp->owidth, vp->oheight,
+                is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
+            is->img_scale_ctx = sws_getCachedContext(is->img_scale_ctx,
+                vp->owidth, vp->oheight, is->pix_fmt, vp->width, vp->height,
                 is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
         } else {
-            if(vp->tempimg) {
-                is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                    vp->owidth, vp->oheight, vp->pix_fmt, vp->owidth, vp->oheight,
-                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
-                is->img_scale_ctx = sws_getCachedContext(is->img_scale_ctx,
-                    vp->owidth, vp->oheight, is->pix_fmt, vp->width, vp->height,
-                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
-            } else {
-                is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
-                    vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
-                    is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
-            }
+            is->img_convert_ctx = sws_getCachedContext(is->img_convert_ctx,
+                vp->width, vp->height, vp->pix_fmt, vp->width, vp->height,
+                is->pix_fmt, is->sws_flags, NULL, NULL, NULL);
         }
         if (is->img_convert_ctx == NULL) {
             av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
@@ -4273,96 +4035,24 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
             do_exit(is);
             return -1;
         }
-        if (!is->usesvda && vp->tempimg && is->img_scale_ctx == NULL) {
+        if (vp->tempimg && is->img_scale_ctx == NULL) {
             av_log(NULL, AV_LOG_ERROR, "[error] queue_picture(): Cannot initialize the conversion context\n");
             pthread_mutex_unlock(&is->slotinfo->mutex);
             do_exit(is);
             return -1;
         }
-#if defined(__APPLE__)
-        if(is->usesvda)
-        {
-            if(is->usesvda==FLAG_VDA_FRAME)
-            {
-               if(vp->vdaframe && is->slotinfo->vdaframe!=vp->vdaframe) {
-                    add_freeable_vdaframe(is->slotinfo, vp->vdaframe, 1);
-                }
-                vp->vdaframe = ff_vda_queue_pop(&is->vdactx);
-                if(vp->vdaframe) {
-                    vdaframeno++;
-                    vdaframes_pop++;
-                }
-            }
-            else
-            {
-                vda_frame * vdaframe = ff_vda_queue_pop(&is->vdactx);
-                if(vdaframe)
-                {
-                    AVPicture vdapict;
-                    memset(&vdapict,0,sizeof(AVPicture));
-                    int i;
-                    CVPixelBufferLockBaseAddress(vdaframe->cv_buffer, 0);
-                    for( i = 0; i < 3; i++ )
-                    {
-                        vdapict.data[i] = CVPixelBufferGetBaseAddressOfPlane( vdaframe->cv_buffer, i );
-                        vdapict.linesize[i] = CVPixelBufferGetBytesPerRowOfPlane( vdaframe->cv_buffer, i );
-                    }
-                    av_log(NULL, AV_LOG_DEBUG,"[debug] queue_picture(): vda frame: %p ptr: %p %p %p pitch: %d %d %d pict.data: %p ||\n",vdaframe,vdapict.data[0],vdapict.data[1],vdapict.data[2], vdapict.linesize[0], vdapict.linesize[1], vdapict.linesize[2], pict.data[0]);
-                    sws_scale(is->img_convert_ctx,
-                                vdapict.data,
-                                vdapict.linesize,
-                                0, vp->height, pict.data, pict.linesize);
-                    CVPixelBufferUnlockBaseAddress(vdaframe->cv_buffer, 0);
-                    ff_vda_release_vda_frame(vdaframe);
-                }
-            }
+        if(vp->tempimg) {
+            sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                      0, vp->oheight, tpict.data, tpict.linesize);
+            sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
+                      0, vp->oheight, pict.data, pict.linesize);
+        } else {
+            sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
+                      0, vp->height, pict.data, pict.linesize);
         }
-        else
-#endif
-        {
-            if(vp->tempimg) {
-                sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
-                          0, vp->oheight, tpict.data, tpict.linesize);
-                sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
-                          0, vp->oheight, pict.data, pict.linesize);
-            } else {
-                sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
-                          0, vp->height, pict.data, pict.linesize);
-            }
-        }
-#endif
         pthread_mutex_unlock(&is->slotinfo->mutex);
         /* update the bitmap content */
 
-        vp->pts = pts;
-        vp->pos = pos;
-        vp->skip = 0;
-
-        /* now we can update the picture count */
-        pthread_mutex_lock(&is->pictq_mutex);
-        if (++is->pictq_windex == VIDEO_PICTURE_QUEUE_SIZE)
-            is->pictq_windex = 0;
-        is->pictq_size++;
-        pthread_mutex_unlock(&is->pictq_mutex);
-    }
-#if defined(__APPLE__)
-    else if (is->usesvda && 0) {
-        AVPicture pict;
-#if CONFIG_AVFILTER
-        if(vp->picref)
-            avfilter_unref_buffer(vp->picref);
-        vp->picref = src_frame->opaque;
-#endif
-        pthread_mutex_lock(&is->slotinfo->mutex);
-        if(vp->vdaframe && is->slotinfo->vdaframe!=vp->vdaframe) {
-            add_freeable_vdaframe(is->slotinfo, vp->vdaframe, 1);
-        }
-        vp->vdaframe = ff_vda_queue_pop(&is->vdactx);
-        if(vp->vdaframe) {
-            vdaframeno++;
-            vdaframes_pop++;
-        }
-        pthread_mutex_unlock(&is->slotinfo->mutex);
         vp->pts = pts;
         vp->pos = pos;
         vp->skip = 0;
@@ -4476,7 +4166,7 @@ static int input_get_buffer(AVCodecContext *codec, AVFrame *pic)
     unsigned edge;
     int pixel_size;
 
-    av_assert0(codec->flags & CODEC_FLAG_EMU_EDGE);
+    //av_assert0(codec->flags & CODEC_FLAG_EMU_EDGE);
 
     if (codec->codec->capabilities & CODEC_CAP_NEG_LINESIZES)
         perms |= AV_PERM_NEG_LINESIZES;
@@ -4565,7 +4255,7 @@ static int input_init(AVFilterContext *ctx, const char *args, void *opaque)
     codec->opaque = ctx;
     if((codec->codec->capabilities & CODEC_CAP_DR1)
     ) {
-        av_assert0(codec->flags & CODEC_FLAG_EMU_EDGE);
+        //av_assert0(codec->flags & CODEC_FLAG_EMU_EDGE);
         priv->use_dr1 = 1;
         codec->get_buffer     = input_get_buffer;
         codec->release_buffer = input_release_buffer;
@@ -4729,6 +4419,7 @@ static void* video_thread(void *arg)
     double st,et;
 
     VideoState *is = arg;
+    int first = 1;
     AVFrame *frame= avcodec_alloc_frame();
     int64_t pts_int = AV_NOPTS_VALUE, pos = -1;
     double pts;
@@ -4865,17 +4556,19 @@ static void* video_thread(void *arg)
             }
         }
 
-        if (is->step > 0 && !(is->slotinfo->status&(STATUS_PLAYER_SEEK))) {
-            //is->step--;
+        if (shouldpause == 1) is->step = 50;
+
+        if (is->step > 0 && (!(is->slotinfo->status&(STATUS_PLAYER_SEEK)) || shouldpause)) {
+            is->step--;
             is->valid_delay = INVALID_DELAY; // instant frame show, no delay
             while (is->step > 0) {
                 is->step--;
                 ret = get_video_frame(is, frame, &pts_int, &pkt);
-                if (ret < 0) {
+                if (ret < 0 && !shouldpause) {
                     goto the_end;
                 }
             }
-            if (!ispaused(is)) {
+            if (!ispaused(is) || shouldpause) {
                 stream_toggle_pause(is);
                 //xplayer_API_pause(is->slotinfo->slotid);
             }
@@ -4902,6 +4595,12 @@ static void* video_thread(void *arg)
             goto the_end;
         }
 
+        if (!first && pos == -1 && ret < 0) {
+            xplayer_API_stop(is->slotinfo->slotid);
+            goto the_end;
+        }
+
+        first = 0;
         if (!ret) continue;
 
         is->frame_last_filter_delay = av_gettime() / 1000000.0 - is->frame_last_returned_time;
@@ -4960,6 +4659,9 @@ static void* video_thread(void *arg)
         {
             fake_key_frame=10;
         }
+
+        if (shouldpause) { shouldpause = 0; continue; }
+
         if(is->pause_seek) {
             if(is->pause_seek_curr==-1) {
                 is->pause_seek_curr=pts;
@@ -5726,7 +5428,7 @@ static af_data_t* read_audio_data(void *opaque, af_data_t* basedata, int len, do
             is->slotinfo->playflag=0;
             is->slotinfo->pauseafterload=1;
             is->slotinfo->reopen=0;
-            event.type = FF_STOP_EVENT;
+            event.type = FF_CLOSE_EVENT;
             event.data = is->slotinfo->streampriv;
             push_event(is->slotinfo->eventqueue, &event);
 fprintf(stderr,"Slot: %d STOP!!!\n",is->slotinfo->slotid);
@@ -5823,7 +5525,7 @@ fprintf(stderr,"Slot: %d len: %d buff: %d diff: %d <--------------------------\n
             is->slotinfo->playflag=0;
             is->slotinfo->pauseafterload=1;
             is->slotinfo->reopen=0;
-            event.type = FF_STOP_EVENT;
+            event.type = FF_CLOSE_EVENT;
             event.data = is->slotinfo->streampriv;
             push_event(is->slotinfo->eventqueue, &event);
 #endif
@@ -6035,55 +5737,6 @@ fprintf(stderr,"Slot: %d speed: %4.2f rate: %d speedrate: %d \n",is->slotinfo->s
     return basedata;
 }
 
-#if defined(__APPLE__)
-static int vda_get_buffer(struct AVCodecContext *c, AVFrame *pic)
-{
-    pic->data[0]=1;
-    pic->data[1]=1;
-    pic->data[3]=1;
-//    pic->age=1;
-    pic->type=FF_BUFFER_TYPE_USER;
-	return 1;
-}
-
-/*
-static int vda_release_buffer(struct AVCodecContext *c, AVFrame *pic)
-{
-}
-*/
-#endif
-
-/// http://code.mythtv.org/doxygen/privatedecoder__vda_8cpp_source.html:
-
-// TODO: refactor this so as not to need these ffmpeg routines.
-// These are not exposed in ffmpeg's API so we dupe them here.
-// AVC helper functions for muxers,
-//  * Copyright (c) 2006 Baptiste Coudurier <baptiste.coudurier@smartjog.com>
-// This is part of FFmpeg
-//  * License as published by the Free Software Foundation; either
-//  * version 2.1 of the License, or (at your option) any later version.
-#define VDA_RB16(x)                             \
-    ((((const uint8_t*)(x))[0] <<  8) |         \
-    ((const uint8_t*)(x)) [1])
-
-#define VDA_RB24(x)                             \
-    ((((const uint8_t*)(x))[0] << 16) |         \
-    (((const uint8_t*)(x))[1] <<  8) |          \
-    ((const uint8_t*)(x))[2])
-
-#define VDA_RB32(x)                             \
-    ((((const uint8_t*)(x))[0] << 24) |         \
-    (((const uint8_t*)(x))[1] << 16) |          \
-    (((const uint8_t*)(x))[2] <<  8) |          \
-    ((const uint8_t*)(x))[3])
-
-#define VDA_WB32(p, d) {                        \
-    ((uint8_t*)(p))[3] = (d);                   \
-    ((uint8_t*)(p))[2] = (d) >> 8;              \
-    ((uint8_t*)(p))[1] = (d) >> 16;             \
-    ((uint8_t*)(p))[0] = (d) >> 24; }
-
-
 static const uint8_t *avc_find_startcode_internal(const uint8_t *p, const uint8_t *end)
 {
     const uint8_t *a = p + 4 - ((intptr_t)p & 3);
@@ -6132,121 +5785,6 @@ const uint8_t *avc_find_startcode(const uint8_t *p, const uint8_t *end)
     return out;
 }
 
-const int avc_parse_nal_units(AVIOContext *pb, const uint8_t *buf_in, int size)
-{
-    const uint8_t *p = buf_in;
-    const uint8_t *end = p + size;
-    const uint8_t *nal_start, *nal_end;
-
-    size = 0;
-    nal_start = avc_find_startcode(p, end);
-    while (nal_start < end)
-    {
-        while (!*(nal_start++));
-        nal_end = avc_find_startcode(nal_start, end);
-        avio_wb32(pb, nal_end - nal_start);
-        avio_write(pb, nal_start, nal_end - nal_start);
-        size += 4 + nal_end - nal_start;
-        nal_start = nal_end;
-    }
-    return size;
-}
-
-const int avc_parse_nal_units_buf(const uint8_t *buf_in,
-                                  uint8_t **buf, int *size)
-{
-    AVIOContext *pb;
-    int ret = avio_open_dyn_buf(&pb);
-    if (ret < 0)
-        return ret;
-
-    avc_parse_nal_units(pb, buf_in, *size);
-
-    av_freep(buf);
-    *size = avio_close_dyn_buf(pb, buf);
-    return 0;
-}
-
-const int isom_write_avcc(AVIOContext *pb, const uint8_t *data, int len)
-{
-    // extradata from bytestream h264, convert to avcC atom data for bitstream
-    if (len > 6)
-    {
-        /* check for h264 start code */
-        if (VDA_RB32(data) == 0x00000001 || VDA_RB24(data) == 0x000001)
-        {
-            uint8_t *buf=NULL, *end, *start;
-            uint32_t sps_size=0, pps_size=0;
-            uint8_t *sps=0, *pps=0;
-            int ret = avc_parse_nal_units_buf(data, &buf, &len);
-            if (ret < 0)
-                return ret;
-            start = buf;
-            end = buf + len;
-
-            /* look for sps and pps */
-            while (buf < end)
-            {
-                unsigned int size;
-                uint8_t nal_type;
-                size = VDA_RB32(buf);
-                nal_type = buf[4] & 0x1f;
-                if (nal_type == 7) /* SPS */
-                {
-                    sps = buf + 4;
-                    sps_size = size;
-
-                    //parse_sps(sps+1, sps_size-1);
-                }
-                else if (nal_type == 8) /* PPS */
-                {
-                    pps = buf + 4;
-                    pps_size = size;
-                }
-                buf += size + 4;
-            }
-            if (!sps)
-            {
-                av_log(NULL, AV_LOG_ERROR, "[error] isom_write_avcc(): Invalid data (sps)\n");
-                return -1;
-            }
-
-            avio_w8(pb, 1); /* version */
-            avio_w8(pb, sps[1]); /* profile */
-            avio_w8(pb, sps[2]); /* profile compat */
-            avio_w8(pb, sps[3]); /* level */
-            avio_w8(pb, 0xff); /* 6 bits reserved (111111) + 2 bits nal size length - 1 (11) */
-            avio_w8(pb, 0xe1); /* 3 bits reserved (111) + 5 bits number of sps (00001) */
-
-            avio_wb16(pb, sps_size);
-            avio_write(pb, sps, sps_size);
-            if (pps)
-            {
-                avio_w8(pb, 1); /* number of pps */
-                avio_wb16(pb, pps_size);
-                avio_write(pb, pps, pps_size);
-            }
-            av_free(start);
-        }
-        else
-        {
-            avio_write(pb, data, len);
-        }
-    }
-    return 0;
-}
-
-#if defined(__APPLE__)
-static enum PixelFormat vda_get_format(struct AVCodecContext *s, const enum PixelFormat * fmt)
-{
-    if(s->request_sample_fmt == PIX_FMT_VDA_VLD && s->codec->id==CODEC_ID_H264)
-    {
-        return PIX_FMT_VDA_VLD;
-    }
-    return avcodec_default_get_format(s, fmt);
-}
-#endif
-
 /* open a given stream. Return 0 if OK */
 static int stream_component_open(VideoState *is, int stream_index)
 {
@@ -6294,84 +5832,6 @@ static int stream_component_open(VideoState *is, int stream_index)
     avctx->error_concealment= is->slotinfo->error_concealment;
     if(avctx->codec_type==AVMEDIA_TYPE_VIDEO && is->slotinfo->imgfmt) {
         avctx->request_sample_fmt = imgfmt2pixfmt(is->slotinfo->imgfmt);
-#if defined(__APPLE__)
-        if(is->slotinfo->vda) {
-            memset(&is->vdactx,0,sizeof(struct vda_context));
-            is->vdactx.decoder = NULL;
-            is->vdactx.queue = NULL;
-            is->vdactx.width = avctx->width;
-            is->vdactx.height = avctx->height;
-            av_log(NULL, AV_LOG_DEBUG, "[debug] stream_component_open(): w: %d, h: %d\n", avctx->width, avctx->height);
-            is->vdactx.format = 'avc1';
-            is->vdactx.cv_pix_fmt_type = kCVPixelFormatType_422YpCbCr8;
-            av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): Extra data: (%d):\n",avctx->extradata_size);
-            for(n=0;n<avctx->extradata_size;n++) {
-                av_log(NULL, AV_LOG_DEBUG,"%02x ",avctx->extradata[n]);
-            }
-            av_log(NULL, AV_LOG_DEBUG,"\n");
-            uint8_t *extradata = NULL;
-            int extrasize = avctx->extradata_size;
-/// Convert annex-b to AVCC:
-            if(extrasize>=7 && avctx->extradata[0]==0x00 && avctx->extradata[1]==0x00 && avctx->extradata[2]==0x01) {
-                unsigned int spssize = 0;
-                unsigned int ppssize = 0;
-                int i;
-                for(i=3;i<extrasize-3;i++) {
-                    if(avctx->extradata[i]==0x00 && avctx->extradata[i+1]==0x00 && avctx->extradata[i+2]==0x01) {
-                        spssize=i-3;
-                        break;
-                    }
-                }
-                if(spssize && extrasize>=spssize+6) {
-                    ppssize=extrasize-6-spssize;
-                }
-                if(spssize && ppssize) {
-                    extradata = av_malloc(11+spssize+ppssize);
-                    extradata[0] = 0x01;
-                    extradata[1] = avctx->profile;
-                    extradata[2] = 0x00;    /// Compatible: 0
-                    extradata[3] = avctx->level;
-                    extradata[4] = 0xfc | 0x03;
-                    extradata[5] = 0xe0 | 0x01;
-                    extradata[6] = spssize >> 8;
-                    extradata[7] = spssize & 0xff;
-                    memcpy(extradata+8, avctx->extradata+3, spssize);
-                    extradata[8+spssize] = 0x01;
-                    extradata[9+spssize] = ppssize >> 8;
-                    extradata[10+spssize] = ppssize & 0xff;
-                    memcpy(extradata+11+spssize, avctx->extradata+6+spssize, ppssize);
-//               00 00 01 67 42 00 29 e2 90 0f 00 44 fc b8 0b 70 10 10 1a 41 e2 44 54 00 00 01 68 ce 3c 80
-//01 42 00 29 ff e1 00 14 67 42 00 29 e2 90 0f 00 44 fc b8 0b 70 10 10 1a 41 e2 44 54 01 00 04 68 ce 3c 80
-// 0  1  2  3 4  5  6  7
-                    extrasize = 11+spssize+ppssize;
-                }
-            }
-            if(!extradata) {
-                if(extrasize) {
-                    extradata = av_malloc(extrasize);
-                    memcpy(extradata,avctx->extradata, extrasize);
-                }
-            }
-            av_log(NULL, AV_LOG_DEBUG,"[debug] stream_component_open(): Extra data for VDA: (%d):\n",extrasize);
-            for(n=0;n<extrasize;n++) {
-                av_log(NULL, AV_LOG_DEBUG,"%02x ",extradata[n]);
-            }
-            int status = ff_vda_create_decoder(&is->vdactx, extradata, extrasize);
-            if(extradata)
-                av_free(extradata);
-            if(!status) {
-                avctx->hwaccel_context = &is->vdactx;
-                is->usesvda=is->slotinfo->vda;
-                is->slotinfo->usesvda=is->usesvda;
-                avctx->get_format=vda_get_format;
-                avctx->get_buffer=vda_get_buffer;
-                avctx->request_sample_fmt = PIX_FMT_VDA_VLD;
-                av_log(NULL, AV_LOG_INFO,"[info] stream_component_open(): VDA decoder init OK\n");
-            } else {
-                av_log(NULL, AV_LOG_ERROR, "[error] stream_component_open(): VDA decoder init ERROR\n");
-            }
-        }
-#endif
     }
     if(codec->capabilities & CODEC_CAP_DR1)
         avctx->flags |= CODEC_FLAG_EMU_EDGE;
@@ -6505,13 +5965,6 @@ static void stream_component_close(VideoState *is, int stream_index)
         pthread_join(is->video_tid, NULL);
 
         packet_queue_end(is, &is->videoq);
-#if defined(__APPLE__)
-        if(is->usesvda) {
-            ff_vda_destroy_decoder(&is->vdactx);
-            is->usesvda=0;
-            memset(&is->vdactx,0,sizeof( struct vda_context));
-        }
-#endif
         break;
     case AVMEDIA_TYPE_SUBTITLE:
         packet_queue_abort(&is->subtitleq);
@@ -7234,7 +6687,7 @@ fprintf(stderr,"Slot: %d aqsize+videoq+subq = %d > MAX_Q %d [%d] || (aqsize %d >
 
     if (ret != 0 || is->slotinfo->reopen) {
         event_t event;
-        event.type = FF_STOP_EVENT;
+        event.type = FF_CLOSE_EVENT;
         event.data = is;
         push_event(is->slotinfo->eventqueue, &event);
     }
@@ -7271,7 +6724,6 @@ static VideoState *stream_open(slotinfo_t* slotinfo, const char *filename, AVInp
     is->slotinfo->eventqueue=init_eventqueue();
     is->slotinfo->loop=1;
     is->slotinfo->audio_callback_time=0;
-    is->slotinfo->usesvda=0;
     is->valid_delay=INVALID_DELAY;
     is->audio_hw_buf_size=is->slotinfo->audio_hw_buf_size;
     av_init_packet(&is->flush_pkt);
@@ -7387,6 +6839,18 @@ static void toggle_pause(VideoState *is)
     is->step = 0;
 }
 
+void statuscallback(VideoState *is, int status, int toggle) {
+    pthread_mutex_lock(&is->slotinfo->mutex);
+    if (is->slotinfo->fn != NULL) {
+        unsigned int toggle_status = 0;
+        if (toggle) toggle_status |= 0x80000000;
+        toggle_status |= status;
+        pthread_create(&is->statuscallback_tid, NULL, is->slotinfo->fn, toggle_status);
+        //is->slotinfo->fn(status, toggle);
+    }
+    pthread_mutex_unlock(&is->slotinfo->mutex);
+}
+
 static void step_to_next_frame(VideoState *is, int step)
 {
     /* if the stream is paused unpause it, then step */
@@ -7429,6 +6893,12 @@ static void event_loop(slotinfo_t* slotinfo)
             break;
         case FF_STOP_EVENT:
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: stop\n",is->slotinfo->slotid,get_master_clock(is));
+            slotinfo->status |= STATUS_PLAYER_STOPPED;
+            statuscallback(is, STATUS_PLAYER_STOPPED, 1);
+            do_exit(is);
+            break;
+        case FF_CLOSE_EVENT:
+            av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: close\n",is->slotinfo->slotid,get_master_clock(is));
             do_exit(is);
             break;
         case FF_ALLOC_EVENT:
@@ -7531,6 +7001,8 @@ static void event_loop(slotinfo_t* slotinfo)
             is->read_enable=read_enable;
             break;
         case STEP_FRAME:
+            // disable seek when paused
+            if (is->paused) break;
             is->slotinfo->status|=(STATUS_PLAYER_SEEK);
             pos = event->vdouble / is->slotinfo->fps - laserbeams;
             laserbeams = 0;
@@ -7551,6 +7023,7 @@ static void event_loop(slotinfo_t* slotinfo)
 
             break;
         case SEEK_EVENT:
+            // disable seek when paused
             is->slotinfo->status|=(STATUS_PLAYER_SEEK);
             pos = event->vdouble;
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: seek: %12.6f (pause: %d)\n",is->slotinfo->slotid,get_master_clock(is),pos,is->paused);
@@ -7574,6 +7047,7 @@ static void event_loop(slotinfo_t* slotinfo)
 #endif
             pos *= AV_TIME_BASE;
             stream_seek(is, (int64_t)(pos), 0, 0);
+            if (is->paused) { shouldpause = 1; toggle_pause(is); }
             break;
         case SEEK_REL_EVENT:
             is->slotinfo->status|=(STATUS_PLAYER_SEEK);
@@ -7648,7 +7122,6 @@ static void *player_process(void *data)
         }
         if(slotinfo->currenturl && slotinfo->playflag) {
             slotinfo->playflag=0;
-            slotinfo->usesvda=0;
 #ifdef THREAD_DEBUG
             av_log(NULL, AV_LOG_DEBUG,"[debug] player_process(): Open stream: %d %s *****************************\n\n",slotinfo->slotid,slotinfo->currenturl);
 #endif

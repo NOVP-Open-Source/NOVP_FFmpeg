@@ -1,30 +1,33 @@
 #!/bin/bash
-
 dest="$@"
 
 avutildir="libavutil"
-avutillib="libavutil.a"
-
 avcoredir=""
 avcorelib=""
-
 avfilterdir="libavfilter"
-avfilterlib="libavfilter.a"
-
 avcodecdir="libavcodec"
-avcodeclib="libavcodec.a"
-
 avformatdir="libavformat"
-avformatlib="libavformat.a"
-
 swscaledir="libswscale"
-swscalelib="libswscale.a"
-
 swresampledir="libswresample"
-swresamplelib="libswresample.a"
-
 avdevicedir="libavdevice"
-avdevicelib="libavdevice.a"
+
+if test ${TERM} == "cygwin" ; then
+avutillib="avutil.dll"
+avfilterlib="avfilter.dll"
+avcodeclib="avcodec.dll"
+avformatlib="avformat.dll"
+swscalelib="swscale.dll"
+swresamplelib="swresample.dll"
+avdevicelib="avdevice.dll"
+else
+avutillib="libavutil.dylib"
+avfilterlib="libavfilter.dylib"
+avcodeclib="libavcodec.dylib"
+avformatlib="libavformat.dylib"
+swscalelib="libswscale.dylib"
+swresamplelib="libswresample.dylib"
+avdevicelib="libavdevice.dylib"
+fi
 
 function testlibs
 {
@@ -56,15 +59,6 @@ function installlibs
 if test "" == "$dest" ; then
     echo "Uses: $0 <destination directory>"
     exit 1
-fi
-
-###mingw
-if test ${TERM} == "cygwin" ; then
-#remember to change winsock.h include to winsock2.h in dtls1.h (openssl). what a hack.
-    ./configure --disable-doc --disable-ffmpeg --disable-ffprobe --disable-ffserver --disable-dxva2 --enable-runtime-cpudetect --disable-muxers --disable-bsfs --enable-openssl
-###mac
-else
-    ./configure --disable-doc --disable-ffmpeg --disable-ffprobe --disable-ffserver --disable-dxva2 --enable-runtime-cpudetect --disable-muxers --disable-bsfs --enable-openssl --extra-cflags="-arch i386" --extra-ldflags='-arch i386 -read_only_relocs suppress' --arch=x86_32 --target-os=darwin --enable-cross-compile
 fi
 
 make

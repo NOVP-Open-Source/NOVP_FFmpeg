@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <pthread.h>
+#include <pthread.h>
 
 #include "libavutil/mem.h"
 
-#include "ffmpeg_config.h"
+//#include "ffmpeg_config.h"
 #undef CONFIG_AVFILTER
 #undef CONFIG_SWSCALE
 #include "config.h"
@@ -14,9 +14,10 @@
 #if HAVE_PTHREADS
 #include <pthread.h>
 #elif HAVE_W32THREADS
-#include "libavcodec/w32pthreads.h"
+#define HAVE_CBRT 1
+#include "compat/w32pthreads.h"
 #elif HAVE_OS2THREADS
-#include "libavcodec/os2threads.h"
+#include "compat/os2threads.h"
 #endif  
 #include "eventqueue.h"
 

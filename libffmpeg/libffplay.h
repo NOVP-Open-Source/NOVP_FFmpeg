@@ -41,6 +41,7 @@ typedef signed long long int 	int64_t;
 #define GROUP_PAUSE_SET_EVENT   1012
 #define GROUP_SEEK_EVENT        1013
 #define STEP_FRAME              1014
+#define FF_CLOSE_EVENT          1015
 
 #define INVALID_FRAME           0
 #define INVALID_DELAY           1
@@ -68,6 +69,7 @@ typedef enum {
 typedef struct slotinfo_st slotinfo_t;
 
 struct slotinfo_st {
+    void                (*fn)(unsigned int);
     int                 slotid;
     int                 freeable;
     int                 status;
@@ -110,8 +112,6 @@ struct slotinfo_st {
     mp_image_t *        img;
     mp_image_t *        lockimg;
     int                 freeablelockimg;
-    void*               vdaframe;
-    void*               lockvdaframe;
 
 
     video_info_t        video_info;
@@ -130,8 +130,6 @@ struct slotinfo_st {
     slotinfo_t*         prev;
 
     mp_image_t*         freeable_images[MAX_IMAGES];
-    void*               freeable_vdaframe[MAX_IMAGES];
-    int                 usesvda;
 
     pthread_cond_t      freeable_cond;
 
@@ -170,7 +168,6 @@ struct slotinfo_st {
     enum AVDiscard      skip_idct;
     enum AVDiscard      skip_loop_filter;
     int                 wanted_stream[AVMEDIA_TYPE_NB];
-    int                 vda;
     int                 audio_hw_buf_size;
 
 /// options

@@ -58,9 +58,10 @@
 #if HAVE_PTHREADS
 #include <pthread.h>
 #elif HAVE_W32THREADS
-#include "libavcodec/w32pthreads.h"
+#define HAVE_CBRT 1
+#include "compat/w32pthreads.h"
 #elif HAVE_OS2THREADS
-#include "libavcodec/os2threads.h"
+#include "compat/os2threads.h"
 #endif 
 
 #include "libffplayopts.h"

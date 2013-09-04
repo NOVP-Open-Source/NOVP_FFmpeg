@@ -313,8 +313,6 @@ mp_image_t* alloc_mpi(int w, int h, unsigned long int fmt);
 #define IMGFMT_VDPAU_VC1           (IMGFMT_VDPAU|0x05)
 #define IMGFMT_VDPAU_MPEG4         (IMGFMT_VDPAU|0x06)
 
-#define IMGFMT_VDA_VLD             (('V'<<24)|('D'<<16)|('A'<<8)|('0'))
-
 typedef struct {
     void* data;
     int size;
@@ -370,6 +368,8 @@ void plugincall(int slotid, int callid);
 #define STATUS_PLAYER_PAUSE             0x0080
 #define STATUS_PLAYER_PAUSE_IMG         0x0100
 #define STATUS_PLAYER_SEEK              0x0200
+#define STATUS_PLAYER_STOPPED           0x0400
+#define STATUS_PLAYER_BUFFERING         0x0800
 
 #define SLOT_MAX_CACHE                  256
 
@@ -403,7 +403,7 @@ void            xplayer_API_setdebug(int slot, int flag);
 void            xplayer_API_slotfree(int slot);
 int             xplayer_API_loadurl(int slot, char* url);
 char*           xplayer_API_geturl(int slot);
-int             xplayer_API_unloadurl(int slot);
+int             xplayer_API_close(int slot);
 int             xplayer_API_enableaudio(int slot, int enable);
 int             xplayer_API_play(int slot);
 int             xplayer_API_pause(int slot);
@@ -421,6 +421,7 @@ int             xplayer_API_mute(int slot, int mute);
 int             xplayer_API_getmute(int slot);
 
 int             xplayer_API_getstatus(int slot);
+void            xplayer_API_setstatuscallback(int slot, void (*fn)(unsigned int));
 double          xplayer_API_getcurrentpts(int slot);
 double          xplayer_API_getrealpts(int slot);
 double          xplayer_API_getfps(int slot);
@@ -435,23 +436,12 @@ int             xplayer_API_freeableimage(int slot, mp_image_t** img);
 int             xplayer_API_freeimage(int slot, mp_image_t* img);
 int             xplayer_API_videoprocessdone(int slot);
 
-int             xplayer_API_isvda(int slot);
 int             xplayer_API_getcallplayerstatus(int slot);
-
-int             xplayer_API_getvdaframe(int slot, void** vdaframe);
-int             xplayer_API_vdaframedone(int slot);
-int             xplayer_API_freeablevdaframe(int slot, void** vdaframe);
-int             xplayer_API_freevdaframe(int slot, void* vdaframe);
-void*           xplayer_API_vdaframe2cvbuffer(int slot, void* vdaframe);
 
 int             xplayer_API_setvideocodec(int slot, char* name);
 int             xplayer_API_setaudiocodec(int slot, char* name);
 int             xplayer_API_setsubtitlecodec(int slot, char* name);
 int             xplayer_API_setsynctype(int slot, int synctype);
-#define FLAG_VDA_NONE        0
-#define FLAG_VDA_DECODE      1
-#define FLAG_VDA_FRAME       2
-int             xplayer_API_setvda(int slot, int vda);
 int             xplayer_API_sethwbuffersize(int slot, int size);
 
 int             xplayer_API_setoptions(int slot, const char *opt, const char *arg);
