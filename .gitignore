@@ -1,1 +1,15 @@
-build/
+.DS_Store
+FFmpeg/libavcodec/avcodec.exp
+FFmpeg/libavdevice/avdevice.exp
+FFmpeg/libavfilter/avfilter.exp
+FFmpeg/libavformat/avformat.exp
+FFmpeg/libavutil/avutil.exp
+FFmpeg/libswresample/swresample.exp
+FFmpeg/libswscale/swscale.exp
+FFmpeg/libavcodec/libavcodec*.dylib
+FFmpeg/libavdevice/libavdevice*.dylib
+FFmpeg/libavfilter/libavfilter*.dylib
+FFmpeg/libavformat/libavformat*.dylib
+FFmpeg/libavutil/libavutil*.dylib
+FFmpeg/libswresample/libswresample*.dylib
+FFmpeg/libswscale/libswscale*.dylib
