@@ -19,6 +19,13 @@ avformatlib="avformat.dll"
 swscalelib="swscale.dll"
 swresamplelib="swresample.dll"
 avdevicelib="avdevice.dll"
+avutildestlib="avutil-51.dll"
+avfilterdestlib="avfilter-3.dll"
+avcodecdestlib="avcodec-54.dll"
+avformatdestlib="avformat-54.dll"
+swscaledestlib="swscale-2.dll"
+swresampledestlib="swresample-0.dll"
+avdevicedestlib="avdevice-54.dll"
 else
 avutillib="libavutil.dylib"
 avfilterlib="libavfilter.dylib"
@@ -27,6 +34,13 @@ avformatlib="libavformat.dylib"
 swscalelib="libswscale.dylib"
 swresamplelib="libswresample.dylib"
 avdevicelib="libavdevice.dylib"
+avutildestlib="libavutil.51.dylib"
+avfilterdestlib="libavfilter.3.dylib"
+avcodecdestlib="libavcodec.54.dylib"
+avformatdestlib="libavformat.54.dylib"
+swscaledestlib="libswscale.2.dylib"
+swresampledestlib="libswresample.0.dylib"
+avdevicedestlib="libavdevice.54.dylib"
 fi
 
 function testlibs
@@ -43,15 +57,16 @@ function installlibs
 {
     srcdir="$1"
     destdir="$2"
-    lib="$3"
+    srclib="$3"
+    destlib="$4"
 
     if test ! "" == "$srcdir" ; then
-        if test ! "" == "$lib" ; then
-            mkdir -p "$destdir/lib"
-            if test -e "$destdir/$lib" ; then
-                rm -f "$destdir/$lib"
+        if test ! "" == "$srclib" ; then
+            mkdir -p "$destdir/srclib"
+            if test -e "$destdir/$srclib" ; then
+                rm -f "$destdir/$srclib"
             fi
-            cp "$srcdir/$lib" "$destdir/lib/$lib"
+            cp "$srcdir/$srclib" "$destdir/lib/$destlib"
         fi
     fi
 }
@@ -66,6 +81,8 @@ if test ! $? == 0 ; then
     exit 1
 fi
 
+mkdir -p $dest/lib
+
 testlibs "$avutildir" "$avutillib"
 testlibs "$avcoredir" "$avcorelib"
 testlibs "$avfilteredir" "$avfilterlib"
@@ -75,25 +92,14 @@ testlibs "$avdevicedir" "$avdevicelib"
 testlibs "$swscaledir" "$swscalelib"
 testlibs "$swresampledir" "$swresamplelib"
 
-if test ${TERM} == "cygwin" ; then
-installlibs "$avutildir" "$dest/avutil-51.dll" "$avutillib"
-installlibs "$avcoredir" "$dest" "$avcorelib"
-installlibs "$avfilterdir" "$dest/avfilter-3.dll" "$avfilterlib"
-installlibs "$avcodecdir" "$dest/avcodec-54.dll" "$avcodeclib"
-installlibs "$avformatdir" "$dest/avformat-54.dll" "$avformatlib"
-installlibs "$avdevicedir" "$dest/avdevice-54.dll" "$avdevicelib"
-installlibs "$swscaledir" "$dest/swscale-2.dll" "$swscalelib"
-installlibs "$swresampledir" "$dest/swresample-0.dll" "$swresamplelib"
-else
-installlibs "$avutildir" "$dest" "$avutillib"
-installlibs "$avcoredir" "$dest" "$avcorelib"
-installlibs "$avfilterdir" "$dest" "$avfilterlib"
-installlibs "$avcodecdir" "$dest" "$avcodeclib"
-installlibs "$avformatdir" "$dest" "$avformatlib"
-installlibs "$avdevicedir" "$dest" "$avdevicelib"
-installlibs "$swscaledir" "$dest" "$swscalelib"
-installlibs "$swresampledir" "$dest" "$swresamplelib"
-fi
+installlibs "$avutildir" "$dest" "$avutillib" "$avutildestlib"
+installlibs "$avcoredir" "$dest" "$avcorelib" "$avcorelib"
+installlibs "$avfilterdir" "$dest" "$avfilterlib" "$avfilterdestlib"
+installlibs "$avcodecdir" "$dest" "$avcodeclib" "$avcodecdestlib"
+installlibs "$avformatdir" "$dest" "$avformatlib" "$avformatdestlib"
+installlibs "$avdevicedir" "$dest" "$avdevicelib" "$avdevicedestlib"
+installlibs "$swscaledir" "$dest" "$swscalelib" "$swscaledestlib"
+installlibs "$swresampledir" "$dest" "$swresamplelib" "$swresampledestlib"
 
 if test -e "$dest/ffmpeg_config.h" ; then
     rm -f "$dest/ffmpeg_config.h"
@@ -102,5 +108,4 @@ cp "config.h" "$dest/ffmpeg_config.h"
 
 #make clean
 
-echo "Install dir: $dest"
-
+#echo "Install dir: $dest"

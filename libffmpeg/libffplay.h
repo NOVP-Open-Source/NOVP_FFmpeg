@@ -69,7 +69,8 @@ typedef enum {
 typedef struct slotinfo_st slotinfo_t;
 
 struct slotinfo_st {
-    void                (*fn)(unsigned int);
+    void*               (*fn)(void *);
+    void                *data;
     int                 slotid;
     int                 freeable;
     int                 status;

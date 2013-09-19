@@ -30,6 +30,8 @@ NOTE for Windows users:
   NOTE for Windows users: You need to run this command through the MinGW shell.
   NOTE for Mac users: If you are getting strange compiler errors,
       manually edit the FFmpeg/config.mak file and remove all occurences of -O3 (this disables optimization)
+  NOTE for Mac users: Builds will default to 64-bit. If you want a 32-bit, write this in terminal:
+      export FFMPEGMAC=32
 
 NOTE: To clean, run clean.sh
 NOTE: To force make, write "make -B -C libffmpeg"

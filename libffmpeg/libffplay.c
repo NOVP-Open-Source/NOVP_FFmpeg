@@ -871,6 +871,189 @@ static void wait_for_free_image(slotinfo_t* slotinfo) {
     pthread_mutex_unlock(&slotinfo->mutex);
 }
 
+int xplayer_API_takescreenshot(char *inputfile, char *outputPPMfile, int pts) {
+    AVFormatContext *pFormatCtx = NULL;
+    int i, videoStream;
+    AVCodecContext *pCodecCtx = NULL;
+    AVCodec *pCodec = NULL;
+    AVFrame *pFrame = NULL;
+    AVFrame *pFrameRGB = NULL;
+    AVPacket packet;
+    int frameFinished;
+    int numBytes;
+    uint8_t *buffer = NULL;
+
+    AVDictionary *optionsDict = NULL;
+    struct SwsContext *sws_ctx = NULL;
+    av_register_all();
+
+    if(avformat_open_input(&pFormatCtx, inputfile, NULL, NULL)!=0)
+        return -1; // Couldn't open file
+
+    if(avformat_find_stream_info(pFormatCtx, NULL)<0)
+        return -1; // Couldn't find stream information
+
+    // Dump information about file onto standard error
+    //av_dump_format(pFormatCtx, 0, inputfile, 0);
+
+    // Find the first video stream
+    videoStream=-1;
+    for(i=0; i<pFormatCtx->nb_streams; i++)
+        if(pFormatCtx->streams[i]->codec->codec_type==AVMEDIA_TYPE_VIDEO) {
+            videoStream=i;
+            break;
+        }
+
+    if(videoStream==-1)
+        return -1; // Didn't find a video stream
+
+    // Get a pointer to the codec context for the video stream
+    pCodecCtx=pFormatCtx->streams[videoStream]->codec;
+
+    // Find the decoder for the video stream
+    pCodec=avcodec_find_decoder(pCodecCtx->codec_id);
+
+    if(pCodec==NULL)
+        return -1; // Codec not found
+
+    // Open codec
+    if(avcodec_open2(pCodecCtx, pCodec, &optionsDict)<0)
+        return -1; // Could not open codec
+
+    // Allocate video frame
+    pFrame=avcodec_alloc_frame();
+
+    // Allocate an AVFrame structure
+    pFrameRGB=avcodec_alloc_frame();
+    if(pFrameRGB==NULL)
+        return -1;
+
+    // Determine required buffer size and allocate buffer
+    numBytes=avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width,pCodecCtx->height);
+    buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+
+    sws_ctx =
+    sws_getContext
+    (
+    pCodecCtx->width,
+    pCodecCtx->height,
+    pCodecCtx->pix_fmt,
+    pCodecCtx->width,
+    pCodecCtx->height,
+    PIX_FMT_RGB24,
+    SWS_BILINEAR,
+    NULL,
+    NULL,
+    NULL
+    );
+
+    // Assign appropriate parts of buffer to image planes in pFrameRGB
+    // Note that pFrameRGB is an AVFrame, but AVFrame is a superset
+    // of AVPicture
+    avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+
+/*    if (avformat_seek_file(pFormatCtx, av_find_default_stream_index(pFormatCtx), INT64_MIN, frame, INT64_MAX, 0) < 0) {
+        printf("error while seeking\n");
+    } else printf("yohooo\n");
+*/
+    i=0;
+
+    while(av_read_frame(pFormatCtx, &packet)>=0) {
+        // Is this a packet from the video stream?
+        if(packet.stream_index==videoStream && (packet.flags & AV_PKT_FLAG_KEY) && (packet.pts >= pts)) {
+            // Decode video frame
+            avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
+
+            // Did we get a video frame?
+            if(frameFinished) {
+
+                // Save the frame to disk
+                FILE *pFile;
+                int y;
+
+                // Convert the image from its native format to RGB
+                sws_scale
+                (
+                sws_ctx,
+                (uint8_t const * const *)pFrame->data,
+                pFrame->linesize,
+                0,
+                pCodecCtx->height,
+                pFrameRGB->data,
+                pFrameRGB->linesize
+                );
+
+                // Open file
+                pFile=fopen(outputPPMfile, "wb");
+                if(pFile!=NULL) {
+                    // Write header
+                    fprintf(pFile, "P6\n%d %d\n255\n", pCodecCtx->width, pCodecCtx->height);
+
+                    // Write pixel data
+                    for(y=0; y<pCodecCtx->height; y++)
+                    fwrite(pFrameRGB->data[0]+y*pFrameRGB->linesize[0], 1, pCodecCtx->width*3, pFile);
+
+                    // Close file
+                    fclose(pFile);
+
+                    break;
+                }
+
+            }
+        }
+
+        // Free the packet that was allocated by av_read_frame
+        av_free_packet(&packet);
+    }
+
+    // Free the RGB image
+    av_free(buffer);
+    av_free(pFrameRGB);
+
+    // Free the YUV frame
+    av_free(pFrame);
+
+    // Close the codec
+    avcodec_close(pCodecCtx);
+
+    // Close the video file
+    avformat_close_input(&pFormatCtx);
+
+    return packet.pts;
+
+}
+
+void xplayer_API_probevideo(char *inputfile, char *outputbuffer) {
+    AVFormatContext *pFormatCtx = NULL;
+    int i;
+    int index = 0;
+
+    *outputbuffer = '\0';
+
+    av_register_all();
+
+    if (avformat_open_input(&pFormatCtx, inputfile, NULL, NULL)!=0)
+        return; // Couldn't open file
+
+    if(avformat_find_stream_info(pFormatCtx, NULL)<0)
+        return; // Couldn't find stream information
+
+    for (i=0;i<pFormatCtx->nb_streams;i++) {
+        int tmp;
+        AVCodecContext *enc = pFormatCtx->streams[i]->codec;
+
+        const char *codec_type = av_get_media_type_string(enc->codec_type);
+        const char *codec_name = avcodec_get_name(enc->codec_id);
+
+        tmp = sprintf(outputbuffer + index, "stream %d: %s [%s];", i, codec_name, codec_type ? codec_type : "unknown");
+        index += tmp;
+    }
+
+    // Close the video file
+    avformat_close_input(&pFormatCtx);
+}
+
+
 void xplayer_API_init(int log_level, const char* logfile) {
 
     xplayer_API_setlogfile(logfile);
@@ -1784,13 +1967,14 @@ int xplayer_API_getstatus(int slot) {
     return ret;
 }
 
-void xplayer_API_setstatuscallback(int slot, void (*fn)(unsigned int)) {
+void xplayer_API_setstatuscallback(int slot, void* (*fn)(void *), void *data) {
     slotinfo_t* slotinfo = get_slot_info(slot,1,1);
     int ret;
 
     apicall(slot, 22);
     pthread_mutex_lock(&slotinfo->mutex);
     slotinfo->fn = fn;
+    slotinfo->data = data;
     pthread_mutex_unlock(&slotinfo->mutex);
     apicall(slot, 0);
 }
@@ -2221,7 +2405,7 @@ void print_error(const char *filename, int err)
 
 #define MAX_QUEUE_SIZE (15 * 1024 * 1024)
 #define MIN_AUDIOQ_SIZE (20 * 16 * 1024)
-#define MIN_FRAMES 50000
+#define MIN_FRAMES 5000
 
 /* SDL audio buffer size, in samples. Should be small to have precise
    A/V sync as SDL does not have hardware buffer fullness info. */
@@ -2705,13 +2889,13 @@ static int packet_queue_get(VideoState *is, PacketQueue *q, AVPacket *pkt, int b
             break;
         } else {
             is->slotinfo->status |= STATUS_PLAYER_BUFFERING;
-            statuscallback(is, STATUS_PLAYER_BUFFERING, 1);
+            //statuscallback(is, STATUS_PLAYER_BUFFERING, 1);
             pthread_cond_wait(&q->cond, &q->mutex);
         }
     }
     if (is->slotinfo->status & (STATUS_PLAYER_BUFFERING)) {
         is->slotinfo->status &= (~STATUS_PLAYER_BUFFERING);
-        statuscallback(is, STATUS_PLAYER_BUFFERING, 0);
+        //statuscallback(is, STATUS_PLAYER_BUFFERING, 0);
     }
     pthread_mutex_unlock(&q->mutex);
     return ret;
@@ -3354,7 +3538,7 @@ static void stream_toggle_pause(VideoState *is)
         is->slotinfo->status&=~(STATUS_PLAYER_PAUSE);
 #endif
     }
-    statuscallback(is, STATUS_PLAYER_PAUSE, is->slotinfo->status&STATUS_PLAYER_PAUSE ? 1 : 0);
+    //statuscallback(is, STATUS_PLAYER_PAUSE, is->slotinfo->status&STATUS_PLAYER_PAUSE ? 1 : 0);
     pthread_mutex_unlock(&is->event_mutex);
 }
 
@@ -4044,7 +4228,7 @@ static int queue_picture(VideoState *is, AVFrame *src_frame, double pts1, int64_
         if(vp->tempimg) {
             sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
                       0, vp->oheight, tpict.data, tpict.linesize);
-            sws_scale(is->img_scale_ctx, tpict.data, tpict.linesize,
+            sws_scale(is->img_scale_ctx, (const uint8_t * const*)tpict.data, tpict.linesize,
                       0, vp->oheight, pict.data, pict.linesize);
         } else {
             sws_scale(is->img_convert_ctx, (const uint8_t * const*)src_frame->data, src_frame->linesize,
@@ -4522,7 +4706,7 @@ static void* video_thread(void *arg)
                 usleep(1000);
             }
 
-            av_log(NULL, "[debug] video_thread(): ", "sum = %d\n", sum);
+            //av_log(NULL, "[debug] video_thread(): ", "sum = %d\n", sum);
 
 #if FORCE_ACCURACY // current implementation causes troubles (i.e. too much wait time)
             if (sum != 100) {
@@ -4537,7 +4721,7 @@ static void* video_thread(void *arg)
 
                 is->step = triggermeh - currentframe;
 
-                av_log(NULL, "[debug] video_thread(): ", "lastret = %d, is->step = %d, triggermeh = %d, currentframe = %d\n", lastret, is->step, triggermeh, currentframe);
+                //av_log(NULL, "[debug] video_thread(): ", "lastret = %d, is->step = %d, triggermeh = %d, currentframe = %d\n", lastret, is->step, triggermeh, currentframe);
 
                 if (is->step == -1) laserbeams = 1;
 
@@ -6399,7 +6583,7 @@ static void* read_thread(void *arg)
 //      of the seek_pos/seek_rel variables
 
             int read_enable=is->read_enable;
-#warning FIXME!! pause_seek
+//#warning FIXME!! pause_seek
             if(!is->slotinfo->audio_disable && !is->realtime)
                 is->read_enable=-1;
             if(!is->realtime)
@@ -6839,14 +7023,21 @@ static void toggle_pause(VideoState *is)
     is->step = 0;
 }
 
+typedef struct arg_struct {
+    int status;
+    int toggle;
+    void *data;
+} arg_struct;
+
 void statuscallback(VideoState *is, int status, int toggle) {
     pthread_mutex_lock(&is->slotinfo->mutex);
     if (is->slotinfo->fn != NULL) {
-        unsigned int toggle_status = 0;
-        if (toggle) toggle_status |= 0x80000000;
-        toggle_status |= status;
-        pthread_create(&is->statuscallback_tid, NULL, is->slotinfo->fn, toggle_status);
-        //is->slotinfo->fn(status, toggle);
+        arg_struct *as = (arg_struct *)malloc(sizeof(arg_struct));
+        as->status = status;
+        as->toggle = toggle;
+        as->data = is->slotinfo->data;
+        //pthread_create(&is->statuscallback_tid, NULL, is->slotinfo->fn, as);
+        is->slotinfo->fn(as);
     }
     pthread_mutex_unlock(&is->slotinfo->mutex);
 }
@@ -6894,7 +7085,7 @@ static void event_loop(slotinfo_t* slotinfo)
         case FF_STOP_EVENT:
             av_log(NULL, AV_LOG_DEBUG,"[debug] event_loop(): Slot: %d Pos: %7.2f  Event: stop\n",is->slotinfo->slotid,get_master_clock(is));
             slotinfo->status |= STATUS_PLAYER_STOPPED;
-            statuscallback(is, STATUS_PLAYER_STOPPED, 1);
+            //statuscallback(is, STATUS_PLAYER_STOPPED, 1);
             do_exit(is);
             break;
         case FF_CLOSE_EVENT:

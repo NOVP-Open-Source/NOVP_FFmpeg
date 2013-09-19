@@ -421,7 +421,7 @@ int             xplayer_API_mute(int slot, int mute);
 int             xplayer_API_getmute(int slot);
 
 int             xplayer_API_getstatus(int slot);
-void            xplayer_API_setstatuscallback(int slot, void (*fn)(unsigned int));
+void            xplayer_API_setstatuscallback(int slot, void* (*fn)(void *), void *data);
 double          xplayer_API_getcurrentpts(int slot);
 double          xplayer_API_getrealpts(int slot);
 double          xplayer_API_getfps(int slot);
@@ -457,6 +457,8 @@ char*           xplayer_API_getstatusline(int slot);
 void            xplayer_API_freestatusline(char* line);
 int             xplayer_API_isbuffering(int slot);
 int64_t         xplayer_API_getcurrentframe(int slot);
+void            xplayer_API_probevideo(char *inputfile, char *outputbuffer);
+int             xplayer_API_takescreenshot(char *inputfile, char *outputPPMfile, int pts);
 #ifdef __cplusplus
 };
 #endif
